@@ -1,8 +1,8 @@
 // Supabase 설정은 supabase-config.js에서 전역 변수로 제공됨
 
 // 아파트 ID 설정 (고유 식별자) - 배포할 리포지토리/프로젝트에 맞게 변경
-// 변경: speed_apartment5 (원격 리포지토리 및 Supabase 설정과 일치)
-const APARTMENT_ID = 'speed_apartment5';
+// 변경: speed_apartment21 (원격 리포지토리 및 Supabase 설정과 일치)
+const APARTMENT_ID = 'speed_apartment21';
 
 // 카카오 SDK 초기화 (실제 앱키로 변경 필요)
 try {
@@ -147,8 +147,8 @@ async function saveAdminSettingsToCloud() {
         }
 
         const settings = {
-            id: APARTMENT_ID,  // id도 speed_apartment5로 설정
-            apartment_id: APARTMENT_ID,  // speed_apartment5 사용
+            id: APARTMENT_ID,  // id도 speed_apartment21로 설정
+            apartment_id: APARTMENT_ID,  // speed_apartment21 사용
             title: localStorage.getItem('mainTitle') || '',
             phones: JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]'),
             emails: JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]'),
@@ -167,20 +167,20 @@ async function saveAdminSettingsToCloud() {
 
         if (checkError && checkError.code === 'PGRST116') {
             // 데이터가 없으면 새로 삽입
-            console.log('🆕 speed_apartment5 데이터 새로 생성 중...');
+            console.log('🆕 speed_apartment21 데이터 새로 생성 중...');
             const { data, error } = await supabase
                 .from('admin_settings')
                 .insert(settings);
 
             if (error) {
-                console.error('❌ speed_apartment5 데이터 생성 실패:', error);
+                console.error('❌ speed_apartment21 데이터 생성 실패:', error);
                 return;
             }
 
-            console.log('✅ speed_apartment5 데이터가 성공적으로 생성되었습니다!', settings);
+            console.log('✅ speed_apartment21 데이터가 성공적으로 생성되었습니다!', settings);
         } else if (!checkError) {
             // 데이터가 이미 있으면 업데이트
-            console.log('🔄 기존 speed_apartment5 데이터 업데이트 중...');
+            console.log('🔄 기존 speed_apartment21 데이터 업데이트 중...');
             const { data, error } = await supabase
                 .from('admin_settings')
                 .update({
@@ -195,11 +195,11 @@ async function saveAdminSettingsToCloud() {
                 .eq('apartment_id', APARTMENT_ID);
 
             if (error) {
-                console.error('❌ speed_apartment5 데이터 업데이트 실패:', error);
+                console.error('❌ speed_apartment21 데이터 업데이트 실패:', error);
                 return;
             }
 
-            console.log('✅ speed_apartment5 데이터가 성공적으로 업데이트되었습니다!', settings);
+            console.log('✅ speed_apartment21 데이터가 성공적으로 업데이트되었습니다!', settings);
         } else {
             console.error('❌ 데이터 확인 중 오류:', checkError);
             return;
@@ -223,7 +223,7 @@ async function loadAdminSettingsFromCloud() {
         const { data, error } = await supabase
             .from('admin_settings')
             .select('*')
-            .eq('apartment_id', APARTMENT_ID)  // speed_apartment5 조건으로 검색
+            .eq('apartment_id', APARTMENT_ID)  // speed_apartment21 조건으로 검색
             .single();
         
         if (error && error.code !== 'PGRST116') { // 데이터가 없는 경우가 아닌 실제 오류
@@ -819,7 +819,7 @@ async function sendNotificationsViaEdgeFunction(applicationData) {
         const { data: adminCheck, error: adminError } = await supabase
             .from('admin_settings')
             .select('emails')
-            .eq('apartment_id', APARTMENT_ID)  // speed_apartment5로 검색
+            .eq('apartment_id', APARTMENT_ID)  // speed_apartment521로 검색
             .single();
 
         if (adminError || !adminCheck?.emails || adminCheck.emails.length === 0) {
