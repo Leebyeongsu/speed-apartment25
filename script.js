@@ -1390,50 +1390,54 @@ function closePhoneInputModal() {
 // QR 코드 생성
 function generatePageQR() {
     console.log('QR 코드 생성 시작');
-    
-    const qrSection = document.getElementById('qrSection');
+
+    const qrCodeContainer = document.getElementById('qrCodeContainer');
     const qrCodeDiv = document.getElementById('qrcode');
-    const qrDeleteBtn = document.getElementById('qrDeleteBtn');
-    
+    const qrActionButtons = document.getElementById('qrActionButtons');
+    const qrGenerateBtn = document.getElementById('qrGenerateBtn');
+
     console.log('DOM 요소 확인:', {
-        qrSection: qrSection,
+        qrCodeContainer: qrCodeContainer,
         qrCodeDiv: qrCodeDiv,
-        qrDeleteBtn: qrDeleteBtn
+        qrActionButtons: qrActionButtons,
+        qrGenerateBtn: qrGenerateBtn
     });
-    
+
+    // DOM 요소 존재 확인
+    if (!qrCodeContainer) {
+        console.error('qrCodeContainer를 찾을 수 없습니다');
+        alert('QR 코드 컨테이너를 찾을 수 없습니다.');
+        return;
+    }
+
+    if (!qrCodeDiv) {
+        console.error('qrCodeDiv를 찾을 수 없습니다');
+        alert('QR 코드 div를 찾을 수 없습니다.');
+        return;
+    }
+
     // QRCode 라이브러리 확인
     if (typeof QRCode === 'undefined') {
         console.error('QRCode 라이브러리가 로드되지 않았습니다.');
         alert('QR 코드 라이브러리를 불러올 수 없습니다.\n\n페이지를 새로고침하고 다시 시도해주세요.');
         return;
     }
-    
+
     // 고객용 URL 생성 (간단하게)
     const currentUrl = window.location.origin + window.location.pathname;
     // 현재 debug 모드인지 확인
     const isDebugMode = new URLSearchParams(window.location.search).get('debug') === 'true';
-    const customerUrl = isDebugMode ? 
-        `${currentUrl}?debug=true&mode=customer` : 
+    const customerUrl = isDebugMode ?
+        `${currentUrl}?debug=true&mode=customer` :
         `${currentUrl}?mode=customer`;
-    
+
     console.log('QR 코드용 단순화된 URL:', customerUrl);
     console.log('URL 길이:', customerUrl.length, '자');
-    
-    // URL이 너무 긴 경우 더 단축
-    if (customerUrl.length > 800) {
-        console.warn('URL이 너무 깁니다. 더 단축합니다.');
-        // 짧은 URL 사용
-        const shortUrl = isDebugMode ? 
-            `${window.location.protocol}//${window.location.host}${window.location.pathname}?debug=true&mode=customer` :
-            `${window.location.protocol}//${window.location.host}${window.location.pathname}?mode=customer`;
-        console.log('더 단축된 URL:', shortUrl, '길이:', shortUrl.length);
-        return generateQRWithShortUrl(shortUrl, qrCodeDiv, qrSection, qrDeleteBtn);
-    }
-    
+
     try {
         console.log('QR 코드 생성 시작');
         qrCodeDiv.innerHTML = '';
-        
+
         new QRCode(qrCodeDiv, {
             text: customerUrl,
             width: 250,
@@ -1443,23 +1447,28 @@ function generatePageQR() {
             correctLevel: QRCode.CorrectLevel.H,
             margin: 2
         });
-        
+
         console.log('QR 코드 생성 완료');
-        
-        // QR 섹션 표시
-        qrSection.style.display = 'block';
-        
-        // QR 삭제 버튼 표시
-        if (qrDeleteBtn) {
-            qrDeleteBtn.style.display = 'inline-block';
+
+        // QR 컨테이너 표시
+        qrCodeContainer.style.display = 'block';
+
+        // QR 액션 버튼들 표시
+        if (qrActionButtons) {
+            qrActionButtons.style.display = 'flex';
         }
-        
+
+        // QR 생성 버튼 숨기기
+        if (qrGenerateBtn) {
+            qrGenerateBtn.style.display = 'none';
+        }
+
         // Supabase에 관리자 설정 저장
         saveAdminSettingsToCloud();
-        
+
         console.log('QR 코드 생성 완료:', customerUrl);
-        
-        } catch (error) {
+
+    } catch (error) {
         console.error('QR 코드 생성 중 오류:', error);
         alert('QR 코드 생성 중 오류가 발생했습니다: ' + error.message);
     }
@@ -1527,45 +1536,86 @@ function generateQRWithShortUrl(shortUrl, qrCodeDiv, qrSection, qrDeleteBtn) {
 
 // QR 코드 삭제
 function deleteQR() {
-    const qrSection = document.getElementById('qrSection');
+    const qrCodeContainer = document.getElementById('qrCodeContainer');
     const qrCodeDiv = document.getElementById('qrcode');
-    const qrDeleteBtn = document.getElementById('qrDeleteBtn');
-    
-    qrCodeDiv.innerHTML = '';
-    qrSection.style.display = 'none';
-    
-    if (qrDeleteBtn) {
-        qrDeleteBtn.style.display = 'none';
-    }
-    
-    console.log('QR 코드 삭제 완료');
-}
+    const qrActionButtons = document.getElementById('qrActionButtons');
+    const qrGenerateBtn = document.getElementById('qrGenerateBtn');
 
-// QR 섹션 숨기기
-function hideQRSection() {
-    const qrSection = document.getElementById('qrSection');
-    qrSection.style.display = 'none';
+    qrCodeDiv.innerHTML = '';
+    qrCodeContainer.style.display = 'none';
+
+    if (qrActionButtons) {
+        qrActionButtons.style.display = 'none';
+    }
+
+    // QR 생성 버튼 다시 표시
+    if (qrGenerateBtn) {
+        qrGenerateBtn.style.display = 'flex';
+    }
+
+    console.log('QR 코드 삭제 완료');
 }
 
 // QR 코드 다운로드
 function downloadQR(format) {
     const qrCodeDiv = document.getElementById('qrcode');
-    const canvas = qrCodeDiv.querySelector('canvas');
-    
-    if (!canvas) {
+    const originalCanvas = qrCodeDiv.querySelector('canvas');
+
+    if (!originalCanvas) {
         alert('QR 코드를 먼저 생성해주세요.');
         return;
     }
-    
+
+    // 새 캔버스 생성 (테두리 공간 추가)
+    const borderWidth = 10; // 테두리 두께 (20 → 10으로 축소)
+    const newCanvas = document.createElement('canvas');
+    const ctx = newCanvas.getContext('2d');
+
+    // 원본 QR 코드 크기
+    const qrWidth = originalCanvas.width;
+    const qrHeight = originalCanvas.height;
+
+    // 테두리를 포함한 새 캔버스 크기
+    newCanvas.width = qrWidth + (borderWidth * 2);
+    newCanvas.height = qrHeight + (borderWidth * 2);
+
+    // 흰색 배경
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+
+    // 연한 녹색 테두리 그리기 (사각형)
+    ctx.strokeStyle = '#90EE90';
+    ctx.lineWidth = borderWidth;
+    ctx.strokeRect(borderWidth / 2, borderWidth / 2,
+                   newCanvas.width - borderWidth,
+                   newCanvas.height - borderWidth);
+
+    // 원본 QR 코드를 중앙에 그리기
+    ctx.drawImage(originalCanvas, borderWidth, borderWidth);
+
+    // 다운로드
     const link = document.createElement('a');
     link.download = `qrcode.${format}`;
-    
+
     if (format === 'png') {
-        link.href = canvas.toDataURL('image/png');
+        link.href = newCanvas.toDataURL('image/png');
     } else if (format === 'jpg') {
-        link.href = canvas.toDataURL('image/jpeg');
+        // JPG는 흰색 배경 추가
+        const jpgCanvas = document.createElement('canvas');
+        const jpgCtx = jpgCanvas.getContext('2d');
+        jpgCanvas.width = newCanvas.width;
+        jpgCanvas.height = newCanvas.height;
+
+        // 흰색 배경
+        jpgCtx.fillStyle = '#FFFFFF';
+        jpgCtx.fillRect(0, 0, jpgCanvas.width, jpgCanvas.height);
+
+        // QR 코드 그리기
+        jpgCtx.drawImage(newCanvas, 0, 0);
+
+        link.href = jpgCanvas.toDataURL('image/jpeg', 0.95);
     }
-    
+
     link.click();
 }
 
@@ -1750,9 +1800,43 @@ document.addEventListener('DOMContentLoaded', function() {
     // URL 파라미터 확인하여 고객용/관리자용 모드 결정
     const urlParams = new URLSearchParams(window.location.search);
     const isCustomerMode = urlParams.has('customer') || urlParams.has('apply') || urlParams.get('mode') === 'customer';
-    
+
+    // 관리자 모드 설정 (PC 레이아웃)
+    if (!isCustomerMode) {
+        const setupAdminMode = () => {
+            console.log('관리자 모드 설정 시작');
+
+            // Container에 admin-mode 클래스 추가 (PC 레이아웃 활성화)
+            const container = document.querySelector('.container');
+            if (container) {
+                container.classList.add('admin-mode');
+            }
+
+            // 관리자 제어판 표시
+            const adminPanel = document.getElementById('adminControlPanel');
+            if (adminPanel) {
+                adminPanel.style.display = 'block';
+            }
+
+            // 고객용 폼 숨김
+            const applicationForm = document.getElementById('applicationForm');
+            if (applicationForm) {
+                applicationForm.style.display = 'none';
+            }
+
+            console.log('관리자 모드 UI 설정 완료');
+        };
+
+        // DOM이 준비되었는지 확인 후 실행
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupAdminMode);
+        } else {
+            setupAdminMode();
+        }
+    }
+
     // 고객용 모드인 경우 QR 생성 버튼과 카카오톡 공유 버튼, 문자 버튼 숨기고 제출 버튼 텍스트 변경
-    if (isCustomerMode) {
+    else if (isCustomerMode) {
         // URL 파라미터로 전달된 관리자 데이터(제목만)를 localStorage에 주입하여
         // 다른 기기(고객 폰)에서도 관리자 설정이 반영되도록 동기화
         (function syncAdminDataFromURL() {
@@ -1771,6 +1855,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const setupCustomerMode = () => {
             console.log('고객 모드 설정 시작');
 
+            // 관리자 제어판 숨김
+            const adminPanel = document.getElementById('adminControlPanel');
+            if (adminPanel) {
+                adminPanel.style.display = 'none';
+            }
+
+            // 고객용 폼 표시
+            const applicationForm = document.getElementById('applicationForm');
+            if (applicationForm) {
+                applicationForm.style.display = 'block';
+            }
+
             // 관리자 버튼들을 더 적극적으로 찾아서 숨기기
             const adminSelectors = [
                 '#adminInputSection',
@@ -1780,13 +1876,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 '.admin-info-buttons',
                 '.input-section',
                 '.action-section',
-                '.email-btn',
-                '.sms-btn',
-                '.share-btn',
-                '.qr-btn',
-                '.info-btn',
-                '#qrGenerateBtn',
-                '#qrDeleteBtn',
+                '.admin-control-panel',
                 '#qrSection'
             ];
 
@@ -1828,13 +1918,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 .admin-info-buttons,
                 .input-section,
                 .action-section,
-                .email-btn,
-                .sms-btn,
-                .share-btn,
-                .qr-btn,
-                .info-btn,
-                #qrGenerateBtn,
-                #qrDeleteBtn,
+                .admin-control-panel,
+                #adminControlPanel,
                 #qrSection {
                     display: none !important;
                     visibility: hidden !important;
@@ -1842,7 +1927,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     height: 0 !important;
                     overflow: hidden !important;
                 }
-                #customerSubmitSection {
+                #customerSubmitSection,
+                #applicationForm {
                     display: block !important;
                     visibility: visible !important;
                 }

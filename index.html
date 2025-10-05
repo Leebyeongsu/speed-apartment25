@@ -14,32 +14,145 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1 id="mainTitle" onclick="editTitle()" style="cursor: pointer; user-select: none;" title="클릭하여 제목 수정">📡 Speed 아파트 통신 환경 개선 신청서</h1>
-            <p id="mainSubtitle" style="cursor: default; user-select: none;">신청서를 작성하여 제출해 주세요</p>
-        </header>
+        <!-- 관리자 모드 전용: 랜딩 페이지 -->
+        <div id="adminControlPanel" class="admin-landing admin-only" style="display: none;">
+            <!-- 히어로 섹션 -->
+            <section class="hero-section">
+                <div class="hero-content">
+                    <div class="hero-badge">⚡ SPEED APARTMENT MANAGEMENT</div>
+                    <h1 class="hero-title">통신환경 개선 신청서 QR 생성 관리 시스템</h1>
+                </div>
+            </section>
 
-        <!-- 관리자 모드 전용: 좌측 상단 추가 정보 입력 버튼들 -->
-        <div id="adminTopSection" class="admin-top-section admin-only" style="display: none;">
-            <div class="admin-info-buttons">
-                <div>
-                    <button type="button" class="info-btn" onclick="showApartmentNameModal()">🏢 아파트 이름</button>
-                    <span id="apartmentNameDisplay" class="info-display"></span>
+            <!-- 기능 카드 섹션 -->
+            <section class="features-section">
+                <div class="section-title-wrapper">
+                    <h2 class="section-title">핵심 기능</h2>
+                    <p class="section-subtitle">3단계로 완성하는 스마트 관리</p>
                 </div>
 
-                <div>
-                    <button type="button" class="info-btn" onclick="showEntryIssueModal()">🎨 진입 테마</button>
-                    <span id="entryIssueDisplay" class="info-display"></span>
-                </div>
+                <div class="features-grid">
+                    <!-- 1단계: 기본 설정 -->
+                    <div class="feature-card step-card">
+                        <div class="card-header">
+                            <span class="step-badge">STEP 1</span>
+                            <h3>🏢 기본 설정</h3>
+                        </div>
+                        <p class="card-description">아파트 정보를 입력하고 관리 시스템을 초기화하세요</p>
+                        <div class="card-buttons">
+                            <button type="button" class="feature-btn primary" onclick="showApartmentNameModal()">
+                                <span class="btn-icon">🏢</span>
+                                <span class="btn-label">아파트 이름 설정</span>
+                            </button>
+                            <span id="apartmentNameDisplay" class="status-display"></span>
 
-                <div>
-                    <button type="button" class="info-btn" onclick="showAgencyNameModal()">👥 영업KC 이름</button>
-                    <span id="agencyNameDisplay" class="info-display"></span>
+                            <button type="button" class="feature-btn primary" onclick="showEntryIssueModal()">
+                                <span class="btn-icon">🎨</span>
+                                <span class="btn-label">진입 테마 설정</span>
+                            </button>
+                            <span id="entryIssueDisplay" class="status-display"></span>
+
+                            <button type="button" class="feature-btn primary" onclick="showAgencyNameModal()">
+                                <span class="btn-icon">👥</span>
+                                <span class="btn-label">영업KC 이름</span>
+                            </button>
+                            <span id="agencyNameDisplay" class="status-display"></span>
+                        </div>
+                    </div>
+
+                    <!-- 2단계: 알림 설정 -->
+                    <div class="feature-card step-card">
+                        <div class="card-header">
+                            <span class="step-badge">STEP 2</span>
+                            <h3>🔔 알림 설정</h3>
+                        </div>
+                        <p class="card-description">신청 접수 시 실시간으로 알림을 받으세요</p>
+                        <div class="card-buttons">
+                            <button type="button" class="feature-btn success" onclick="showEmailInputModal()">
+                                <span class="btn-icon">📧</span>
+                                <span class="btn-label">이메일 알림 설정</span>
+                            </button>
+                            <span id="emailDisplay" class="status-display"></span>
+
+                            <button type="button" class="feature-btn success" onclick="showPhoneInputModal()">
+                                <span class="btn-icon">📱</span>
+                                <span class="btn-label">SMS 알림 설정</span>
+                            </button>
+                            <span id="phoneDisplay" class="status-display"></span>
+
+                            <button type="button" class="feature-btn info" onclick="shareToKakao()">
+                                <span class="btn-icon">💬</span>
+                                <span class="btn-label">카카오톡 공유</span>
+                                <span class="btn-arrow">→</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3단계: 공유 및 배포 -->
+                    <div class="feature-card step-card">
+                        <div class="card-header">
+                            <span class="step-badge">STEP 3</span>
+                            <h3>🚀 공유 & 배포</h3>
+                        </div>
+                        <p class="card-description">QR 코드와 SNS로 신청서를 빠르게 배포하세요</p>
+                        <div class="card-buttons">
+                            <button type="button" class="feature-btn warning" id="qrGenerateBtn" onclick="generatePageQR()">
+                                <span class="btn-icon">📱</span>
+                                <span class="btn-label">QR 코드 생성</span>
+                                <span class="btn-arrow">→</span>
+                            </button>
+
+                            <!-- QR 코드 표시 영역 -->
+                            <div id="qrCodeContainer" class="qr-container" style="display: none; margin-top: 15px;">
+                                <div id="qrcode"></div>
+                            </div>
+
+                            <!-- QR 액션 버튼들 -->
+                            <div id="qrActionButtons" class="qr-action-buttons" style="display: none; margin-top: 8px;">
+                                <button type="button" class="feature-btn danger" id="qrDeleteBtn" onclick="deleteQR()">
+                                    <span class="btn-icon">🗑️</span>
+                                    <span class="btn-label">QR 코드<br>삭제</span>
+                                </button>
+                                <button type="button" class="feature-btn success" onclick="downloadQR('png')">
+                                    <span class="btn-icon">💾</span>
+                                    <span class="btn-label">PNG<br>다운로드</span>
+                                </button>
+                                <button type="button" class="feature-btn success" onclick="downloadQR('jpg')">
+                                    <span class="btn-icon">💾</span>
+                                    <span class="btn-label">JPG<br>다운로드</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- CTA 섹션 -->
+            <section class="cta-section">
+                <div class="cta-content">
+                    <h2 class="cta-title">모든 준비가 완료되셨나요?</h2>
+                    <p class="cta-description">위 3단계를 완료하시면 바로 신청서를 받을 수 있습니다</p>
+                    <div class="cta-buttons">
+                        <button type="button" class="cta-btn primary" onclick="generatePageQR()">
+                            <span class="cta-icon">📱</span>
+                            <span class="cta-text">QR 코드 생성하기</span>
+                        </button>
+                        <button type="button" class="cta-btn secondary" onclick="shareToKakao()">
+                            <span class="cta-icon">💬</span>
+                            <span class="cta-text">카카오톡 공유</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <form id="applicationForm" class="application-form">
+        <header>
+            <h1 id="mainTitle" onclick="editTitle()" style="cursor: pointer; user-select: none;" title="클릭하여 제목 수정">📡 Speed 아파트 통신 환경 개선 신청서</h1>
+            <p id="mainSubtitle" style="cursor: default; user-select: none;">스마트한 관리, 간편한 운영. 모든 신청을 한 곳에서 쉽고 빠르게 관리하세요.</p>
+        </header>
+
+        <!-- 고객 모드 전용: 신청 폼 -->
+        <form id="applicationForm" class="application-form customer-only" style="display: none;">
             <div class="form-group">
                 <label for="name">공사요청 :  동 / 호수 *</label>
                 <input type="text" id="name" name="name" required>
@@ -79,45 +192,13 @@
             </div>
 
             <div class="form-actions">
-                <!-- 상단: 메일/폰번호 입력 그룹 (관리자용) -->
-                <div id="adminInputSection" class="input-section">
-                    <div class="input-group">
-                        <button type="button" class="email-btn" onclick="showEmailInputModal()">메일 입력</button>
-                        <span id="emailDisplay" class="input-display"></span>
-                    </div>
-                    <div class="input-group">
-                        <button type="button" class="sms-btn" onclick="showPhoneInputModal()">폰번호 입력</button>
-                        <span id="phoneDisplay" class="input-display"></span>
-                    </div>
-                </div>
-                
-                <!-- 하단: 공유 및 QR 코드 버튼들 (관리자용) -->
-                <div id="adminActionSection" class="action-section">
-                    <button type="button" class="share-btn" onclick="shareToKakao()">카카오톡 공유</button>
-                    <button type="button" class="qr-btn" id="qrGenerateBtn" onclick="generatePageQR()">📱 QR 코드 생성</button>
-                    <button type="button" class="qr-btn" id="qrDeleteBtn" onclick="deleteQR()" style="display: none;">🗑️ QR 코드 삭제</button>
-                </div>
-                
                 <!-- 고객용: 신청서 제출 버튼 -->
-                <div id="customerSubmitSection" class="customer-submit-section" style="display: none;">
+                <div id="customerSubmitSection" class="customer-submit-section">
                     <button type="submit" class="submit-btn">신청서 제출</button>
                 </div>
             </div>
         </form>
 
-        <!-- QR 코드 생성 섹션 -->
-        <div id="qrSection" class="qr-section" style="display: none;">
-            <h2>📱 QR 코드</h2>
-            <p>QR코드를 다운로드하여 홍보물에 붙여 넣어주세요</p>
-            <div id="qrCodeContainer" class="qr-container">
-                <div id="qrcode"></div>
-            </div>
-            <div class="qr-actions">
-                <button type="button" class="download-btn" onclick="downloadQR('png')">PNG 다운로드</button>
-                <button type="button" class="download-btn" onclick="downloadQR('jpg')">JPG 다운로드</button>
-                <button type="button" class="close-btn" onclick="hideQRSection()">닫기</button>
-            </div>
-        </div>
 
         <!-- 메일 입력 모달 -->
         <div id="emailInputModal" class="modal" style="display: none;">
