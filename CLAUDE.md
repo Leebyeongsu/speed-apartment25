@@ -77,8 +77,8 @@ CREATE TABLE notification_logs (
 #### 1. 아파트 ID 상수 정의 (script.js:5)
 ```javascript
 // 아파트 ID 설정 (고유 식별자) - 배포할 리포지토리/프로젝트에 맞게 변경
-// 변경: speed_apartment5 (원격 리포지토리 및 Supabase 설정과 일치)
-const APARTMENT_ID = 'speed_apartment5';
+// 변경: speed_apartment21 (원격 리포지토리 및 Supabase 설정과 일치)
+const APARTMENT_ID = 'speed_apartment21';
 ```
 
 이 상수는 **모든 Supabase 데이터 작업의 핵심 식별자**로 사용됩니다.
@@ -87,8 +87,8 @@ const APARTMENT_ID = 'speed_apartment5';
 ```javascript
 // saveAdminSettingsToCloud() 함수에서 APARTMENT_ID 사용
 const settings = {
-    id: APARTMENT_ID,                    // ⭐ id 필드 = 'speed_apartment5'
-    apartment_id: APARTMENT_ID,          // ⭐ apartment_id 필드 = 'speed_apartment5'
+    id: APARTMENT_ID,                    // ⭐ id 필드 = 'speed_apartment21'
+    apartment_id: APARTMENT_ID,          // ⭐ apartment_id 필드 = 'speed_apartment21'
     title: localStorage.getItem('mainTitle') || '',
     phones: JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]'),
     emails: JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]'),
@@ -105,7 +105,7 @@ const settings = {
 const { data: existingData, error: checkError } = await supabase
     .from('admin_settings')
     .select('*')
-    .eq('apartment_id', APARTMENT_ID)  // ⭐ WHERE apartment_id = 'speed_apartment5'
+    .eq('apartment_id', APARTMENT_ID)  // ⭐ WHERE apartment_id = 'speed_apartment21'
     .single();
 ```
 
@@ -117,7 +117,7 @@ if (checkError && checkError.code === 'PGRST116') {
     // 데이터가 없으면 새로 삽입
     const { data, error } = await supabase
         .from('admin_settings')
-        .insert(settings);  // ⭐ settings 객체 전체 삽입 (id='speed_apartment5' 포함)
+        .insert(settings);  // ⭐ settings 객체 전체 삽입 (id='speed_apartment21' 포함)
 }
 ```
 
@@ -136,7 +136,7 @@ else if (!checkError) {
             agency_name: settings.agency_name,          // 👥
             updated_at: settings.updated_at
         })
-        .eq('apartment_id', APARTMENT_ID);  // ⭐ WHERE apartment_id = 'speed_apartment5'
+        .eq('apartment_id', APARTMENT_ID);  // ⭐ WHERE apartment_id = 'speed_apartment21'
 }
 ```
 
@@ -146,7 +146,7 @@ else if (!checkError) {
 const { data, error } = await supabase
     .from('admin_settings')
     .select('*')
-    .eq('apartment_id', APARTMENT_ID)  // ⭐ WHERE apartment_id = 'speed_apartment5'
+    .eq('apartment_id', APARTMENT_ID)  // ⭐ WHERE apartment_id = 'speed_apartment21'
     .single();
 ```
 
@@ -156,25 +156,25 @@ const { data, error } = await supabase
 const { data: adminCheck, error: adminError } = await supabase
     .from('admin_settings')
     .select('emails')
-    .eq('apartment_id', APARTMENT_ID)  // ⭐ WHERE apartment_id = 'speed_apartment5'
+    .eq('apartment_id', APARTMENT_ID)  // ⭐ WHERE apartment_id = 'speed_apartment21'
     .single();
 ```
 
 ### 🔄 데이터 흐름 전체 과정
 
-1. **초기화**: `APARTMENT_ID = 'speed_apartment5'` 설정
+1. **초기화**: `APARTMENT_ID = 'speed_apartment21'` 설정
 2. **관리자 설정 저장**:
-   - localStorage → settings 객체 → Supabase (`id` + `apartment_id` 모두 'speed_apartment5')
-3. **데이터 조회**: `apartment_id = 'speed_apartment5'` 조건으로 검색
+   - localStorage → settings 객체 → Supabase (`id` + `apartment_id` 모두 'speed_apartment21')
+3. **데이터 조회**: `apartment_id = 'speed_apartment21'` 조건으로 검색
 4. **UPSERT 로직**:
-   - 데이터 없음 → INSERT (id와 apartment_id 모두 'speed_apartment5')
-   - 데이터 있음 → UPDATE (apartment_id = 'speed_apartment5' 조건)
-5. **로드**: `apartment_id = 'speed_apartment5'` 조건으로 데이터 가져오기
+   - 데이터 없음 → INSERT (id와 apartment_id 모두 'speed_apartment21')
+   - 데이터 있음 → UPDATE (apartment_id = 'speed_apartment21' 조건)
+5. **로드**: `apartment_id = 'speed_apartment21'` 조건으로 데이터 가져오기
 6. **이메일**: 해당 아파트의 관리자 설정에서 이메일 목록 조회
 
 ### 🎯 핵심 포인트
 
-- **단일 아파트 격리**: `speed_apartment5`는 이 프로젝트만의 고유 네임스페이스
+- **단일 아파트 격리**: `speed_apartment21`는 이 프로젝트만의 고유 네임스페이스
 - **이중 식별자**: `id`와 `apartment_id` 모두 동일한 값으로 설정하여 안전성 확보
 - **일관된 조회**: 모든 데이터 작업에서 `apartment_id` 기준으로 필터링
 - **다중 아파트 지원**: 다른 아파트는 다른 APARTMENT_ID 사용 가능
@@ -199,7 +199,7 @@ npx serve .
 ### 설정
 - **Supabase URL**: `https://boorsqnfkwglzvnhtwcx.supabase.co`
 - **EmailJS 사용자 ID**: `8-CeAZsTwQwNl4yE2`
-- **아파트 ID**: `speed_apartment5` (script.js:5에서 설정 가능)
+- **아파트 ID**: `speed_apartment21` (script.js:5에서 설정 가능)
 
 ### 테스트 모드
 ```
@@ -267,7 +267,7 @@ speed-apartment-이은화/
 ## ⚙️ 설정 관리
 
 ### 핵심 설정 (`script.js`)
-- **APARTMENT_ID**: `'speed_apartment5'` - 이 아파트 단지의 고유 식별자
+- **APARTMENT_ID**: `'speed_apartment21'` - 이 아파트 단지의 고유 식별자
 - **EmailJS 통합**: 재시도 로직을 포함한 자동 초기화
 - **Supabase 연결**: 다중 방법 클라이언트 초기화
 - **카카오 SDK**: 선택적 소셜 공유 통합

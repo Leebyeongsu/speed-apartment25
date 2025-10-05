@@ -30,8 +30,8 @@
 
 ### 1. 프로젝트 클론
 ```bash
-git clone <repository-url>
-cd speed-apartment-이것으로 계속 영업자 생성
+git clone https://github.com/Leebyeongsu/speed_apartmant21
+cd speed-apartment-이것으로 계속 영업자 생성_홈페이지
 ```
 
 ### 2. 로컬 서버 실행
@@ -124,7 +124,7 @@ Kakao.init('YOUR_KAKAO_APP_KEY');
 ## 🏗️ 프로젝트 구조
 
 ```
-speed-apartment-이것으로 계속 영업자 생성/
+speed-apartment-이것으로 계속 영업자 생성_홈페이지/
 ├── index.html              # 메인 웹 페이지
 ├── script.js               # 핵심 JavaScript 로직 (2197줄)
 ├── style.css               # 반응형 스타일시트
@@ -176,7 +176,7 @@ speed-apartment-이것으로 계속 영업자 생성/
 ### 아파트 ID 변경
 각 아파트별로 고유 ID 설정 (script.js:5)
 ```javascript
-const APARTMENT_ID = 'speed_apartment5';
+const APARTMENT_ID = 'speed_apartment21';
 ```
 
 ### 제목 수정
