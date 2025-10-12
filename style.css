@@ -1337,6 +1337,54 @@ body.customer-mode .admin-landing {
     font-weight: 400;
 }
 
+/* 신규 영업 KC 등록 버튼 섹션 */
+.new-kc-register-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 25px;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 5px;
+}
+
+.new-kc-register-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.new-kc-register-btn:hover {
+    background: linear-gradient(135deg, #ff5252 0%, #dd4960 100%);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+}
+
+.new-kc-register-btn .btn-icon {
+    font-size: 1.2rem;
+}
+
+.new-kc-register-btn .btn-text {
+    font-weight: 700;
+}
+
+.new-kc-hint {
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
 .features-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1629,5 +1677,291 @@ body.customer-mode .admin-landing {
         width: 100%;
         max-width: 400px;
         justify-content: center;
+    }
+}
+
+/* ========================================
+   QR 코드 목록 관리 스타일
+   ======================================== */
+
+/* QR 목록 컨테이너 */
+.qr-list-container {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.qr-list {
+    display: grid;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+/* QR 카드 */
+.qr-card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+    width: 300px;
+    max-width: 300px;
+}
+
+.qr-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.qr-card.inactive {
+    opacity: 0.6;
+    background: #f1f3f5;
+}
+
+/* QR 카드 헤더 */
+.qr-card-header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.qr-card-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.qr-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.qr-status {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.qr-status.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.qr-status.inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.qr-card-info {
+    display: flex;
+    gap: 15px;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* QR 코드 미리보기 */
+.qr-code-preview {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    width: 170px;
+    height: 170px;
+    margin: 0 auto;
+}
+
+.qr-code-preview canvas {
+    border: 3px solid #90EE90;
+    border-radius: 8px;
+    padding: 5px;
+    background: white;
+    width: 150px !important;
+    height: 150px !important;
+}
+
+/* QR 카드 액션 버튼 */
+.qr-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.qr-action-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.qr-action-btn.download {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.qr-action-btn.download:hover {
+    background: linear-gradient(135deg, #3b9ce8 0%, #00d9e4 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
+}
+
+.qr-action-btn.toggle {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.qr-action-btn.toggle:hover {
+    background: linear-gradient(135deg, #e080eb 0%, #e44658 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+}
+
+.qr-action-btn.edit {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.qr-action-btn.edit:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #63408b 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.qr-action-btn.delete {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+}
+
+.qr-action-btn.delete:hover {
+    background: linear-gradient(135deg, #ff5252 0%, #dd4960 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+}
+
+/* QR 목록 빈 상태 */
+.qr-list:empty::after {
+    content: '생성된 QR 코드가 없습니다.';
+    display: block;
+    text-align: center;
+    padding: 30px;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* 반응형 - QR 카드 */
+@media (max-width: 768px) {
+    .qr-card-actions {
+        flex-direction: column;
+    }
+
+    .qr-action-btn {
+        width: 100%;
+    }
+
+    .qr-code-preview canvas {
+        width: 120px !important;
+        height: 120px !important;
+    }
+}
+/* ========================================
+   QR 코드 갤러리 섹션 (웹 맨 아래)
+   ======================================== */
+
+/* QR 갤러리 섹션 */
+.qr-gallery-section {
+    padding: 40px 30px;
+    background: linear-gradient(135deg, #e8eaf0 0%, #f0f2f5 100%);
+    border-top: 3px solid #e9ecef;
+}
+
+.qr-gallery-content {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.qr-gallery-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.qr-gallery-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.qr-gallery-subtitle {
+    font-size: 0.95rem;
+    color: #6c757d;
+    font-weight: 400;
+}
+
+/* QR 목록 - 세로 배치 */
+.qr-list-horizontal {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 10px 0;
+}
+
+/* QR 카드 세로 배치용 */
+.qr-list-horizontal .qr-card {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+/* QR 갤러리 빈 상태 */
+.qr-list-horizontal:empty::after {
+    content: '📱 생성된 QR 코드가 없습니다.\n위 "QR 코드 생성" 버튼을 눌러 새 QR을 만들어보세요!';
+    display: block;
+    text-align: center;
+    padding: 60px 30px;
+    color: #6c757d;
+    font-size: 1rem;
+    font-weight: 500;
+    white-space: pre-line;
+    width: 100%;
+}
+
+/* 반응형 - 갤러리 섹션 */
+@media (max-width: 1024px) {
+    .qr-gallery-section {
+        padding: 30px 20px;
+    }
+
+    .qr-list-horizontal {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .qr-gallery-section {
+        padding: 25px 15px;
+    }
+
+    .qr-gallery-title {
+        font-size: 1.4rem;
+    }
+
+    .qr-list-horizontal {
+        grid-template-columns: 1fr;
     }
 }

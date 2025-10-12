@@ -10,7 +10,7 @@
     <meta property="og:description" content="Speed 아파트 통신 환경 개선 신청서">
     <meta property="og:url" content="">
     <title>Speed 아파트 통신 환경 개선 신청서</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
     <div class="container">
@@ -29,6 +29,15 @@
                 <div class="section-title-wrapper">
                     <h2 class="section-title">핵심 기능</h2>
                     <p class="section-subtitle">3단계로 완성하는 스마트 관리</p>
+                </div>
+
+                <!-- 신규 영업 KC 등록 버튼 -->
+                <div class="new-kc-register-section">
+                    <button type="button" class="new-kc-register-btn" onclick="resetAllSettings()">
+                        <span class="btn-icon">✨</span>
+                        <span class="btn-text">신규 영업 KC 등록</span>
+                    </button>
+                    <span class="new-kc-hint">새로운 QR을 만드세요</span>
                 </div>
 
                 <div class="features-grid">
@@ -96,51 +105,32 @@
                         </div>
                         <p class="card-description">QR 코드와 SNS로 신청서를 빠르게 배포하세요</p>
                         <div class="card-buttons">
-                            <button type="button" class="feature-btn warning" id="qrGenerateBtn" onclick="generatePageQR()">
+                            <button type="button" class="feature-btn warning" id="qrGenerateBtn" onclick="showQRNameModal()">
                                 <span class="btn-icon">📱</span>
                                 <span class="btn-label">QR 코드 생성</span>
                                 <span class="btn-arrow">→</span>
                             </button>
+                        </div>
 
-                            <!-- QR 코드 표시 영역 -->
-                            <div id="qrCodeContainer" class="qr-container" style="display: none; margin-top: 15px;">
-                                <div id="qrcode"></div>
-                            </div>
-
-                            <!-- QR 액션 버튼들 -->
-                            <div id="qrActionButtons" class="qr-action-buttons" style="display: none; margin-top: 8px;">
-                                <button type="button" class="feature-btn danger" id="qrDeleteBtn" onclick="deleteQR()">
-                                    <span class="btn-icon">🗑️</span>
-                                    <span class="btn-label">QR 코드<br>삭제</span>
-                                </button>
-                                <button type="button" class="feature-btn success" onclick="downloadQR('png')">
-                                    <span class="btn-icon">💾</span>
-                                    <span class="btn-label">PNG<br>다운로드</span>
-                                </button>
-                                <button type="button" class="feature-btn success" onclick="downloadQR('jpg')">
-                                    <span class="btn-icon">💾</span>
-                                    <span class="btn-label">JPG<br>다운로드</span>
-                                </button>
+                        <!-- 최신 생성된 QR 코드 1개 표시 영역 -->
+                        <div id="qrListContainer" class="qr-list-container" style="margin-top: 15px; display: none;">
+                            <div id="qrListInCard" class="qr-list">
+                                <!-- 최신 QR 카드 1개만 표시됩니다 -->
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- CTA 섹션 -->
-            <section class="cta-section">
-                <div class="cta-content">
-                    <h2 class="cta-title">모든 준비가 완료되셨나요?</h2>
-                    <p class="cta-description">위 3단계를 완료하시면 바로 신청서를 받을 수 있습니다</p>
-                    <div class="cta-buttons">
-                        <button type="button" class="cta-btn primary" onclick="generatePageQR()">
-                            <span class="cta-icon">📱</span>
-                            <span class="cta-text">QR 코드 생성하기</span>
-                        </button>
-                        <button type="button" class="cta-btn secondary" onclick="shareToKakao()">
-                            <span class="cta-icon">💬</span>
-                            <span class="cta-text">카카오톡 공유</span>
-                        </button>
+            <!-- QR 코드 갤러리 섹션 (웹 맨 아래) -->
+            <section id="qrGallerySection" class="qr-gallery-section admin-only" style="display: none;">
+                <div class="qr-gallery-content">
+                    <div class="qr-gallery-header">
+                        <h2 class="qr-gallery-title">📱 생성된 QR 코드 관리</h2>
+                        <p class="qr-gallery-subtitle">생성된 QR 코드를 확인하고 관리하세요</p>
+                    </div>
+                    <div id="qrList" class="qr-list-horizontal">
+                        <!-- QR 카드들이 가로로 표시됩니다 -->
                     </div>
                 </div>
             </section>
@@ -354,6 +344,27 @@
             </div>
         </div>
 
+        <!-- QR 이름 입력 모달 (관리자 전용) -->
+        <div id="qrNameInputModal" class="modal admin-only" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeQRNameModal()">×</span>
+                <h2>📱 QR 코드 생성</h2>
+                <div class="email-form">
+                    <div class="form-group">
+                        <label for="qrNameInput">담당자 이름 *</label>
+                        <input type="text" id="qrNameInput" placeholder="예: 이은화" required>
+                        <p style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                            이 이름으로 고유한 QR 코드와 URL이 생성됩니다.
+                        </p>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="submit-btn" onclick="createNewQR()">QR 코드 생성</button>
+                        <button type="button" class="close-btn" onclick="closeQRNameModal()">취소</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="result" class="result-section" style="display: none;">
             <h2>✅ 신청이 완료되었습니다!</h2>
             <div id="resultContent"></div>
@@ -473,7 +484,7 @@ URL: ${window.location.href}
         }
     </script>
     <!-- JavaScript -->
-    <script src="supabase-config.js"></script>
-    <script src="script.js"></script>
+    <script src="supabase-config.js?v=7"></script>
+    <script src="script.js?v=7"></script>
 </body>
 </html>

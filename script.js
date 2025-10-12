@@ -4,6 +4,9 @@
 // 변경: speed_apartment21 (원격 리포지토리 및 Supabase 설정과 일치)
 const APARTMENT_ID = 'speed_apartment21';
 
+// 현재 QR ID 저장 (고객 모드에서 URL 파라미터로부터 추출)
+let currentQrId = null;
+
 // 카카오 SDK 초기화 (실제 앱키로 변경 필요)
 try {
     if (typeof Kakao !== 'undefined' && Kakao && !Kakao.isInitialized()) {
@@ -432,7 +435,8 @@ async function saveApplicationToSupabase(applicationData) {
                 submittedAt: 'submitted_at',
                 submitted_at: 'submitted_at',
                 application_number: 'application_number',
-                privacy: 'privacy'
+                privacy: 'privacy',
+                qr_id: 'qr_id'  // QR ID 매핑 추가
             };
 
             const out = {};
@@ -449,6 +453,12 @@ async function saveApplicationToSupabase(applicationData) {
         }
 
         const applicationRecord = mapToDbRecord(applicationData);
+
+        // QR ID 추가 (고객이 QR 코드를 통해 접속한 경우)
+        if (currentQrId) {
+            applicationRecord.qr_id = currentQrId;
+            console.log('📱 신청서에 QR ID 포함:', currentQrId);
+        }
 
         // privacy는 항상 true로 표시
         applicationRecord.privacy = true;
@@ -1824,6 +1834,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 applicationForm.style.display = 'none';
             }
 
+            // 관리자 정보 표시 초기화
+            initializeAdminInfoDisplay();
+
+            // 기존 QR 코드 마이그레이션 (한 번만 실행)
+            const migrationKey = `qr_migration_done_${APARTMENT_ID}`;
+            if (!localStorage.getItem(migrationKey)) {
+                console.log('🔄 QR 코드 마이그레이션 실행 중...');
+                migrateOldQRCodes().then(() => {
+                    localStorage.setItem(migrationKey, 'true');
+                    // 마이그레이션 후 QR 목록 다시 불러오기
+                    loadQRList();
+                });
+            } else {
+                // 마이그레이션 이미 완료됨
+                loadQRList();
+            }
+
             console.log('관리자 모드 UI 설정 완료');
         };
 
@@ -1842,9 +1869,20 @@ document.addEventListener('DOMContentLoaded', function() {
         (function syncAdminDataFromURL() {
             try {
                 const titleParam = urlParams.get('title');
-                
+
                 if (titleParam) {
                     localStorage.setItem('mainTitle', decodeURIComponent(titleParam));
+                }
+
+                // QR ID 추출 및 저장
+                const qrIdParam = urlParams.get('qr_id');
+                if (qrIdParam) {
+                    // URL에는 짧은 코드만 있지만, 내부적으로는 전체 ID 저장
+                    const shortCode = decodeURIComponent(qrIdParam);
+                    currentQrId = `${APARTMENT_ID}_${shortCode}`;
+                    console.log('📱 QR ID 추출 성공:', currentQrId, '(짧은 코드:', shortCode, ')');
+                } else {
+                    console.log('ℹ️ QR ID 없음 (일반 고객 모드)');
                 }
             } catch (e) {
                 console.warn('URL 기반 관리자 데이터 동기화 실패:', e);
@@ -2054,7 +2092,6 @@ window.savePhoneNumbers = savePhoneNumbers;
 window.closePhoneInputModal = closePhoneInputModal;
 window.generatePageQR = generatePageQR;
 window.deleteQR = deleteQR;
-window.hideQRSection = hideQRSection;
 window.downloadQR = downloadQR;
 window.shareToKakao = function() {
     // 카카오톡 공유 기능
@@ -2282,3 +2319,633 @@ window.saveEntryIssue = saveEntryIssue;
 window.showAgencyNameModal = showAgencyNameModal;
 window.closeAgencyNameModal = closeAgencyNameModal;
 window.saveAgencyName = saveAgencyName;
+
+// ========================================
+// QR 코드 다중 생성 및 관리 시스템
+// ========================================
+
+// QR 이름 입력 모달 열기
+function showQRNameModal() {
+    console.log('🔍 showQRNameModal 함수 호출됨!');
+
+    const modal = document.getElementById('qrNameInputModal');
+    const input = document.getElementById('qrNameInput');
+
+    console.log('📋 DOM 요소 확인:', {
+        modal: modal,
+        input: input,
+        modalExists: !!modal,
+        inputExists: !!input
+    });
+
+    if (modal && input) {
+        console.log('✅ 모달 요소 찾음 - 모달 표시 중...');
+        input.value = '';
+        modal.style.display = 'block';
+        input.focus();
+        console.log('✅ 모달 표시 완료!');
+    } else {
+        console.error('❌ QR 이름 입력 모달 요소를 찾을 수 없습니다.');
+        console.error('modal:', modal);
+        console.error('input:', input);
+        alert('QR 모달 요소를 찾을 수 없습니다. 콘솔(F12)을 확인하세요.');
+    }
+}
+
+// QR 이름 입력 모달 닫기
+function closeQRNameModal() {
+    const modal = document.getElementById('qrNameInputModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 설정 화면으로 이동
+function goToSettings() {
+    console.log('⚙️ 설정 화면으로 이동');
+
+    // STEP 1 카드(기본 설정)로 스크롤
+    const featuresSection = document.querySelector('.features-section');
+    if (featuresSection) {
+        // 부드러운 스크롤 애니메이션
+        featuresSection.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+
+        // STEP 1 카드 하이라이트 효과 (1.5초간)
+        const step1Card = document.querySelector('.feature-card.step-card');
+        if (step1Card) {
+            step1Card.style.transition = 'all 0.3s ease';
+            step1Card.style.boxShadow = '0 0 30px rgba(76, 175, 80, 0.6)';
+            step1Card.style.transform = 'scale(1.02)';
+
+            setTimeout(() => {
+                step1Card.style.boxShadow = '';
+                step1Card.style.transform = '';
+            }, 1500);
+        }
+    } else {
+        console.warn('설정 섹션을 찾을 수 없습니다.');
+    }
+}
+
+// 모든 설정 초기화 (신규 영업 KC 등록)
+function resetAllSettings() {
+    console.log('🔄 모든 설정 초기화 시작');
+
+    // 확인 메시지
+    const confirmed = confirm('모든 설정을 초기화하시겠습니까?\n\n- STEP 1: 아파트 정보\n- STEP 2: 이메일/SMS 알림\n\n이 작업은 되돌릴 수 없습니다.');
+
+    if (!confirmed) {
+        console.log('❌ 초기화 취소됨');
+        return;
+    }
+
+    try {
+        // STEP 1: 기본 설정 초기화
+        localStorage.removeItem('apartmentName');
+        localStorage.removeItem('entryIssue');
+        localStorage.removeItem('agencyName');
+
+        // STEP 2: 알림 설정 초기화
+        localStorage.removeItem('savedEmailAddresses');
+        localStorage.removeItem('savedPhoneNumbers');
+
+        // 화면 표시 초기화
+        const apartmentNameDisplay = document.getElementById('apartmentNameDisplay');
+        const entryIssueDisplay = document.getElementById('entryIssueDisplay');
+        const agencyNameDisplay = document.getElementById('agencyNameDisplay');
+        const emailDisplay = document.getElementById('emailDisplay');
+        const phoneDisplay = document.getElementById('phoneDisplay');
+
+        if (apartmentNameDisplay) {
+            apartmentNameDisplay.textContent = '';
+            apartmentNameDisplay.classList.remove('has-content');
+        }
+
+        if (entryIssueDisplay) {
+            entryIssueDisplay.textContent = '';
+            entryIssueDisplay.classList.remove('has-content');
+        }
+
+        if (agencyNameDisplay) {
+            agencyNameDisplay.textContent = '';
+            agencyNameDisplay.classList.remove('has-content');
+        }
+
+        if (emailDisplay) {
+            emailDisplay.textContent = '';
+            emailDisplay.classList.remove('has-content');
+        }
+
+        if (phoneDisplay) {
+            phoneDisplay.textContent = '';
+            phoneDisplay.classList.remove('has-content');
+        }
+
+        console.log('✅ 모든 설정이 초기화되었습니다');
+        alert('✅ 모든 설정이 초기화되었습니다!\n\n새로운 영업 KC를 등록해주세요.');
+
+        // STEP 1 카드로 스크롤
+        goToSettings();
+
+    } catch (error) {
+        console.error('❌ 설정 초기화 중 오류:', error);
+        alert('설정 초기화 중 오류가 발생했습니다.');
+    }
+}
+
+// 새 QR 코드 생성
+async function createNewQR() {
+    const input = document.getElementById('qrNameInput');
+    const qrName = input.value.trim();
+
+    if (!qrName) {
+        alert('담당자 이름을 입력해주세요.');
+        return;
+    }
+
+    try {
+        console.log('🔍 QR 코드 생성 시작:', qrName);
+
+        // Supabase 연결 확인
+        if (!window.supabase) {
+            throw new Error('Supabase 클라이언트를 찾을 수 없습니다.');
+        }
+
+        // 중복 확인 (qr_name으로)
+        const { data: existingQR, error: checkError } = await window.supabase
+            .from('qr_codes')
+            .select('*')
+            .eq('apartment_id', APARTMENT_ID)
+            .eq('qr_name', qrName)
+            .maybeSingle();
+
+        if (existingQR) {
+            alert(`"${qrName}" 이름의 QR 코드가 이미 존재합니다.\n다른 이름을 사용해주세요.`);
+            return;
+        }
+
+        // 짧은 랜덤 코드 생성 (6자리: 영문 소문자 + 숫자)
+        const generateShortCode = () => {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        };
+
+        // 중복되지 않는 short_code 생성
+        let shortCode;
+        let attempts = 0;
+        while (attempts < 10) {
+            shortCode = generateShortCode();
+            const { data: existingCode } = await window.supabase
+                .from('qr_codes')
+                .select('id')
+                .eq('id', `${APARTMENT_ID}_${shortCode}`)
+                .maybeSingle();
+
+            if (!existingCode) break;
+            attempts++;
+        }
+
+        if (attempts >= 10) {
+            throw new Error('고유 코드 생성 실패. 다시 시도해주세요.');
+        }
+
+        // QR ID 생성 (아파트ID_짧은코드)
+        const qrId = `${APARTMENT_ID}_${shortCode}`;
+
+        // QR URL 생성 (짧은 코드만 사용)
+        const currentUrl = window.location.origin + window.location.pathname;
+        const isDebugMode = new URLSearchParams(window.location.search).get('debug') === 'true';
+        const qrUrl = isDebugMode ?
+            `${currentUrl}?debug=true&mode=customer&qr_id=${shortCode}` :
+            `${currentUrl}?mode=customer&qr_id=${shortCode}`;
+
+        console.log('📱 짧은 코드로 QR URL 생성:', qrUrl, '(코드:', shortCode, ')');
+
+        // admin_settings에서 기본 설정 가져오기
+        const { data: adminSettings, error: adminError } = await window.supabase
+            .from('admin_settings')
+            .select('*')
+            .eq('apartment_id', APARTMENT_ID)
+            .single();
+
+        if (adminError) {
+            console.warn('관리자 설정을 불러올 수 없습니다:', adminError);
+        }
+
+        // QR 데이터 객체 생성
+        const qrData = {
+            id: qrId,
+            apartment_id: APARTMENT_ID,
+            qr_name: qrName,
+            phones: adminSettings?.phones || [],
+            emails: adminSettings?.emails || [],
+            apartment_name: adminSettings?.apartment_name || '',
+            entry_issue: adminSettings?.entry_issue || '',
+            agency_name: adminSettings?.agency_name || '',
+            qr_url: qrUrl,
+            is_active: true,
+            scan_count: 0,
+            created_at: new Date().toISOString()
+        };
+
+        console.log('💾 Supabase에 저장할 데이터:', qrData);
+
+        // Supabase에 저장
+        const { data, error } = await window.supabase
+            .from('qr_codes')
+            .insert(qrData)
+            .select()
+            .single();
+
+        if (error) {
+            throw new Error(`QR 저장 실패: ${error.message}`);
+        }
+
+        console.log('✅ QR 코드 저장 성공 (코드:', shortCode, '):', data);
+
+        // 모달 닫기
+        closeQRNameModal();
+
+        // QR 목록 새로고침
+        await loadQRList();
+
+        alert(`"${qrName}" QR 코드가 생성되었습니다!`);
+
+    } catch (error) {
+        console.error('❌ QR 코드 생성 중 오류:', error);
+        alert(`QR 코드 생성 중 오류가 발생했습니다:\n${error.message}`);
+    }
+}
+
+// 기존 QR 코드를 짧은 코드로 마이그레이션
+async function migrateOldQRCodes() {
+    try {
+        console.log('🔄 기존 QR 코드 마이그레이션 시작...');
+
+        // 기존 QR 목록 조회 (한글 이름이 URL에 포함된 것들)
+        const { data: oldQRs, error: fetchError } = await window.supabase
+            .from('qr_codes')
+            .select('*')
+            .eq('apartment_id', APARTMENT_ID);
+
+        if (fetchError) {
+            console.warn('기존 QR 조회 실패:', fetchError);
+            return;
+        }
+
+        if (!oldQRs || oldQRs.length === 0) {
+            console.log('마이그레이션할 QR 코드 없음');
+            return;
+        }
+
+        // 한글이 URL 인코딩된 QR만 필터링
+        const qrsToMigrate = oldQRs.filter(qr => {
+            return qr.qr_url && (qr.qr_url.includes('%') || qr.id.includes(qr.qr_name));
+        });
+
+        if (qrsToMigrate.length === 0) {
+            console.log('✅ 모든 QR 코드가 이미 최신 형식입니다');
+            return;
+        }
+
+        console.log(`📋 마이그레이션 대상: ${qrsToMigrate.length}개`);
+
+        // 짧은 코드 생성 함수
+        const generateShortCode = () => {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        };
+
+        // 각 QR 코드를 변환
+        for (const oldQR of qrsToMigrate) {
+            try {
+                // 중복되지 않는 짧은 코드 생성
+                let shortCode;
+                let attempts = 0;
+                while (attempts < 10) {
+                    shortCode = generateShortCode();
+                    const { data: existingCode } = await window.supabase
+                        .from('qr_codes')
+                        .select('id')
+                        .eq('id', `${APARTMENT_ID}_${shortCode}`)
+                        .maybeSingle();
+
+                    if (!existingCode) break;
+                    attempts++;
+                }
+
+                if (attempts >= 10) {
+                    console.warn(`⚠️ ${oldQR.qr_name} 코드 생성 실패 - 건너뜀`);
+                    continue;
+                }
+
+                // 새 ID와 URL 생성
+                const newId = `${APARTMENT_ID}_${shortCode}`;
+                const currentUrl = window.location.origin + window.location.pathname;
+                const newUrl = `${currentUrl}?mode=customer&qr_id=${shortCode}`;
+
+                // 새 QR 데이터 생성
+                const newQRData = {
+                    id: newId,
+                    apartment_id: oldQR.apartment_id,
+                    qr_name: oldQR.qr_name,
+                    phones: oldQR.phones,
+                    emails: oldQR.emails,
+                    apartment_name: oldQR.apartment_name,
+                    entry_issue: oldQR.entry_issue,
+                    agency_name: oldQR.agency_name,
+                    qr_url: newUrl,
+                    is_active: oldQR.is_active,
+                    scan_count: oldQR.scan_count || 0,
+                    created_at: oldQR.created_at || new Date().toISOString()
+                };
+
+                // 새 레코드 삽입
+                const { error: insertError } = await window.supabase
+                    .from('qr_codes')
+                    .insert(newQRData);
+
+                if (insertError) {
+                    console.warn(`⚠️ ${oldQR.qr_name} 삽입 실패:`, insertError.message);
+                    continue;
+                }
+
+                // 기존 레코드 삭제
+                const { error: deleteError } = await window.supabase
+                    .from('qr_codes')
+                    .delete()
+                    .eq('id', oldQR.id);
+
+                if (deleteError) {
+                    console.warn(`⚠️ ${oldQR.qr_name} 기존 레코드 삭제 실패:`, deleteError.message);
+                } else {
+                    console.log(`✅ ${oldQR.qr_name}: ${oldQR.id} → ${newId} (코드: ${shortCode})`);
+                }
+
+            } catch (error) {
+                console.error(`❌ ${oldQR.qr_name} 마이그레이션 실패:`, error);
+            }
+        }
+
+        console.log('🎉 QR 코드 마이그레이션 완료!');
+
+    } catch (error) {
+        console.error('❌ 마이그레이션 중 오류:', error);
+    }
+}
+
+// QR 목록 불러오기
+async function loadQRList() {
+    try {
+        console.log('🔍 QR 목록 불러오기 시작');
+
+        if (!window.supabase) {
+            throw new Error('Supabase 클라이언트를 찾을 수 없습니다.');
+        }
+
+        // Supabase에서 QR 목록 조회
+        const { data, error } = await window.supabase
+            .from('qr_codes')
+            .select('*')
+            .eq('apartment_id', APARTMENT_ID)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw new Error(`QR 목록 조회 실패: ${error.message}`);
+        }
+
+        console.log('✅ QR 목록 조회 성공:', data);
+
+        // QR 목록 렌더링
+        renderQRList(data || []);
+
+    } catch (error) {
+        console.error('❌ QR 목록 불러오기 중 오류:', error);
+        // 사용자에게는 조용히 처리 (초기 로드 시 테이블이 없을 수 있음)
+    }
+}
+
+// QR 목록 UI 렌더링 (두 곳에 표시: STEP 3 카드 내부 + 페이지 하단 갤러리)
+function renderQRList(qrList) {
+    // 1. STEP 3 카드 내부 요소들
+    const qrListContainer = document.getElementById('qrListContainer');
+    const qrListInCard = document.getElementById('qrListInCard');
+
+    // 2. 페이지 하단 갤러리 요소들
+    const qrGallerySection = document.getElementById('qrGallerySection');
+    const qrListGallery = document.getElementById('qrList');
+
+    if (!qrListContainer || !qrListInCard || !qrGallerySection || !qrListGallery) {
+        console.warn('QR 목록 컨테이너를 찾을 수 없습니다.');
+        return;
+    }
+
+    // 목록이 비어있으면 모두 숨김
+    if (qrList.length === 0) {
+        qrListContainer.style.display = 'none';
+        qrGallerySection.style.display = 'none';
+        return;
+    }
+
+    // ===== 1. STEP 3 카드 내부: 최신 1개만 표시 =====
+    qrListContainer.style.display = 'block';
+    const latestQR = qrList[0]; // 최신 1개만
+    renderQRCard(qrListInCard, [latestQR], 'card');
+
+    // ===== 2. 페이지 하단 갤러리: 전체 목록 표시 =====
+    qrGallerySection.style.display = 'block';
+    renderQRCard(qrListGallery, qrList, 'gallery');
+}
+
+// QR 카드 HTML 생성 및 렌더링 (공통 함수)
+function renderQRCard(container, qrList, prefix) {
+    if (!container) return;
+
+    // QR 카드 HTML 생성
+    container.innerHTML = qrList.map(qr => `
+        <div class="qr-card ${!qr.is_active ? 'inactive' : ''}" data-qr-id="${qr.id}">
+            <div class="qr-card-header">
+                <div class="qr-card-title">
+                    <span class="qr-name">${qr.qr_name}</span>
+                    <span class="qr-status ${qr.is_active ? 'active' : 'inactive'}">
+                        ${qr.is_active ? '활성' : '비활성'}
+                    </span>
+                </div>
+            </div>
+            <div class="qr-code-preview" id="qr-preview-${prefix}-${qr.id}"></div>
+            <div class="qr-card-actions">
+                <button type="button" class="qr-action-btn download" onclick="downloadQRCode('${prefix}-${qr.id}', '${qr.qr_name}', 'png')">
+                    <span>💾 PNG</span>
+                </button>
+                <button type="button" class="qr-action-btn download" onclick="downloadQRCode('${prefix}-${qr.id}', '${qr.qr_name}', 'jpg')">
+                    <span>💾 JPG</span>
+                </button>
+                <button type="button" class="qr-action-btn edit" onclick="goToSettings()">
+                    <span>⚙️ 기본 설정 수정</span>
+                </button>
+                <button type="button" class="qr-action-btn delete" onclick="deleteQRCode('${qr.id}', '${qr.qr_name}')">
+                    <span>🗑️ 삭제</span>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    // 각 QR 코드 생성
+    qrList.forEach(qr => {
+        const previewDiv = document.getElementById(`qr-preview-${prefix}-${qr.id}`);
+        if (previewDiv && qr.qr_url) {
+            try {
+                // QR 코드 미리보기 생성
+                new QRCode(previewDiv, {
+                    text: qr.qr_url,
+                    width: 150,
+                    height: 150,
+                    colorDark: "#000000",
+                    colorLight: "#FFFFFF",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            } catch (error) {
+                console.error(`QR 미리보기 생성 실패 (${prefix}-${qr.id}):`, error);
+                previewDiv.innerHTML = '<p style="color: #999;">미리보기 생성 실패</p>';
+            }
+        }
+    });
+}
+
+// QR 코드 다운로드
+async function downloadQRCode(qrId, qrName, format) {
+    try {
+        console.log(`📥 QR 다운로드 시작: ${qrName} (${format})`);
+
+        // QR 미리보기에서 캔버스 가져오기
+        const previewDiv = document.getElementById(`qr-preview-${qrId}`);
+        const originalCanvas = previewDiv?.querySelector('canvas');
+
+        if (!originalCanvas) {
+            alert('QR 코드를 찾을 수 없습니다.');
+            return;
+        }
+
+        // 테두리 추가된 새 캔버스 생성
+        const borderWidth = 10;
+        const newCanvas = document.createElement('canvas');
+        const ctx = newCanvas.getContext('2d');
+
+        const qrWidth = originalCanvas.width;
+        const qrHeight = originalCanvas.height;
+
+        newCanvas.width = qrWidth + (borderWidth * 2);
+        newCanvas.height = qrHeight + (borderWidth * 2);
+
+        // 흰색 배경
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+
+        // 연한 녹색 테두리
+        ctx.strokeStyle = '#90EE90';
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(borderWidth / 2, borderWidth / 2,
+            qrWidth + borderWidth, qrHeight + borderWidth);
+
+        // 원본 QR 코드 그리기
+        ctx.drawImage(originalCanvas, borderWidth, borderWidth);
+
+        // 다운로드
+        const link = document.createElement('a');
+        link.download = `qrcode_${qrName}.${format}`;
+        link.href = newCanvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`);
+        link.click();
+
+        console.log(`✅ QR 다운로드 완료: ${qrName}.${format}`);
+
+    } catch (error) {
+        console.error('❌ QR 다운로드 중 오류:', error);
+        alert(`QR 다운로드 중 오류가 발생했습니다:\n${error.message}`);
+    }
+}
+
+// QR 코드 삭제
+async function deleteQRCode(qrId, qrName) {
+    if (!confirm(`"${qrName}" QR 코드를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+        return;
+    }
+
+    try {
+        console.log(`🗑️ QR 삭제 시작: ${qrId}`);
+
+        if (!window.supabase) {
+            throw new Error('Supabase 클라이언트를 찾을 수 없습니다.');
+        }
+
+        // Supabase에서 삭제
+        const { error } = await window.supabase
+            .from('qr_codes')
+            .delete()
+            .eq('id', qrId);
+
+        if (error) {
+            throw new Error(`QR 삭제 실패: ${error.message}`);
+        }
+
+        console.log(`✅ QR 삭제 완료: ${qrId}`);
+
+        // QR 목록 새로고침
+        await loadQRList();
+
+        alert(`"${qrName}" QR 코드가 삭제되었습니다.`);
+
+    } catch (error) {
+        console.error('❌ QR 삭제 중 오류:', error);
+        alert(`QR 삭제 중 오류가 발생했습니다:\n${error.message}`);
+    }
+}
+
+// QR 코드 활성화/비활성화 토글
+async function toggleQRActive(qrId, newState) {
+    try {
+        console.log(`🔄 QR 상태 변경 시작: ${qrId} → ${newState ? '활성' : '비활성'}`);
+
+        if (!window.supabase) {
+            throw new Error('Supabase 클라이언트를 찾을 수 없습니다.');
+        }
+
+        // Supabase에서 상태 업데이트
+        const { error } = await window.supabase
+            .from('qr_codes')
+            .update({ is_active: newState })
+            .eq('id', qrId);
+
+        if (error) {
+            throw new Error(`QR 상태 변경 실패: ${error.message}`);
+        }
+
+        console.log(`✅ QR 상태 변경 완료: ${qrId}`);
+
+        // QR 목록 새로고침
+        await loadQRList();
+
+    } catch (error) {
+        console.error('❌ QR 상태 변경 중 오류:', error);
+        alert(`QR 상태 변경 중 오류가 발생했습니다:\n${error.message}`);
+    }
+}
+
+// 전역 함수로 노출
+window.showQRNameModal = showQRNameModal;
+window.closeQRNameModal = closeQRNameModal;
+window.createNewQR = createNewQR;
+window.loadQRList = loadQRList;
+window.downloadQRCode = downloadQRCode;
+window.deleteQRCode = deleteQRCode;
+window.toggleQRActive = toggleQRActive;

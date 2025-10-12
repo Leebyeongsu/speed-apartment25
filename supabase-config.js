@@ -45,7 +45,8 @@ function initializeSupabase() {
             supabase = createClientFn(supabaseUrl, supabaseAnonKey);
 
             // 전역으로 노출(즉시 사용 가능한 상태로 만듦)
-            window.supabaseClient = supabase;
+            window.supabaseClient = supabase;  // 기존 코드 호환성
+            window.supabase = supabase;        // 새 QR 관리 함수용
 
             console.log('✅ Supabase 클라이언트 초기화 성공:', supabase);
 
@@ -148,7 +149,6 @@ CREATE TABLE notification_logs (
 // Supabase Edge Functions 기본 URL (프로젝트 ref 기반)
 const functionsBaseUrl = `https://boorsqnfkwglzvnhtwcx.functions.supabase.co`;
 
-// 전역 변수로 노출
-window.supabaseClient = supabase;
+// 전역 함수로 노출 (supabase 클라이언트는 initializeSupabase 함수 내부에서 노출됨)
 window.initializeSupabase = initializeSupabase;
 window.functionsBaseUrl = functionsBaseUrl;
