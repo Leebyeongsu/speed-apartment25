@@ -47,7 +47,7 @@
                             <span class="step-badge">STEP 1</span>
                             <h3>🏢 기본 설정</h3>
                         </div>
-                        <p class="card-description">아파트 정보를 입력하고 관리 시스템을 초기화하세요</p>
+                        <p class="card-description">아파트/테마 정보를 입력하고 영업KC 등록하세요</p>
                         <div class="card-buttons">
                             <button type="button" class="feature-btn primary" onclick="showApartmentNameModal()">
                                 <span class="btn-icon">🏢</span>
@@ -79,13 +79,13 @@
                         <div class="card-buttons">
                             <button type="button" class="feature-btn success" onclick="showEmailInputModal()">
                                 <span class="btn-icon">📧</span>
-                                <span class="btn-label">이메일 알림 설정</span>
+                                <span class="btn-label">이메일 알림 설정 (3명 가능)</span>
                             </button>
                             <span id="emailDisplay" class="status-display"></span>
 
                             <button type="button" class="feature-btn success" onclick="showPhoneInputModal()">
                                 <span class="btn-icon">📱</span>
-                                <span class="btn-label">SMS 알림 설정</span>
+                                <span class="btn-label">SMS 알림 설정 (3명 가능)</span>
                             </button>
                             <span id="phoneDisplay" class="status-display"></span>
 
@@ -370,9 +370,11 @@
             <div id="resultContent"></div>
 
             <!-- 조건부 이미지 영역: workType이 KT가 아닌 경우 표시 (고객 모드에서도 apartment_ehwa.jpg 한 장만 사용) -->
+            <!-- 주석 처리: 이미지 비활성화
             <div id="promotionFlyer" class="promotion-flyer" style="display: none; text-align: center;">
                 <img src="apartment_ehwa.jpg" alt="통신 서비스 안내" class="flyer-image" style="max-width:100%;height:auto;display:inline-block;">
             </div>
+            -->
 
             <!-- 결과 액션 버튼들: ID 추가 -->
             <div id="resultActions" class="result-actions">
