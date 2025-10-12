@@ -1730,7 +1730,7 @@ function showResult(applicationData = null) {
         if (workType === 'interior') { // KT 선택
             // KT 선택 시: 버튼들 표시, 전단지 숨김
             resultActions.style.display = 'block';
-            promotionFlyer.style.display = 'none';
+            if (promotionFlyer) promotionFlyer.style.display = 'none';
             console.log('KT 선택 - 버튼 표시, 전단지 숨김');
 
         } else if (workType === 'exterior' ||   // SKT
@@ -1738,13 +1738,13 @@ function showResult(applicationData = null) {
                    workType === 'electrical') { // 기타(지역방송)
             // SKT/LGU+/기타 선택 시: 버튼들 숨김, 전단지 표시
             resultActions.style.display = 'none';
-            promotionFlyer.style.display = 'block';
+            if (promotionFlyer) promotionFlyer.style.display = 'block';
             console.log('KT가 아닌 통신사 선택 - 버튼 숨김, 전단지 표시');
 
         } else {
             // 기본값: 버튼들 표시 (이전 동작 유지)
             resultActions.style.display = 'block';
-            promotionFlyer.style.display = 'none';
+            if (promotionFlyer) promotionFlyer.style.display = 'none';
             console.log('기본값 - 버튼 표시');
         }
     } else {
@@ -1758,7 +1758,7 @@ function showResult(applicationData = null) {
 
         // 데이터가 없는 경우 기본값으로 버튼 표시
         resultActions.style.display = 'block';
-        promotionFlyer.style.display = 'none';
+        if (promotionFlyer) promotionFlyer.style.display = 'none';
     }
 
     // 폼 숨기고 결과 표시

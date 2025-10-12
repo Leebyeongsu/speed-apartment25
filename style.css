@@ -1380,9 +1380,9 @@ body.customer-mode .admin-landing {
 }
 
 .new-kc-hint {
-    font-size: 0.85rem;
+    font-size: 0.90rem;
     color: #6c757d;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .features-grid {
