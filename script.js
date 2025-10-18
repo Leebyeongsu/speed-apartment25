@@ -2390,17 +2390,70 @@ function goToSettings() {
     }
 }
 
-// 모든 설정 초기화 (신규 영업 KC 등록)
-function resetAllSettings() {
-    console.log('🔄 모든 설정 초기화 시작');
+// 신규 영업 KC 등록 시작
+function startNewKcRegistration() {
+    console.log('✨ 신규 영업 KC 등록 시작');
 
     // 확인 메시지
-    const confirmed = confirm('모든 설정을 초기화하시겠습니까?\n\n- STEP 1: 아파트 정보\n- STEP 2: 이메일/SMS 알림\n\n이 작업은 되돌릴 수 없습니다.');
+    const confirmed = confirm('신규 영업 KC를 등록하시겠습니까?\n\n초기화 항목:\n• STEP 1: 아파트 이름, 진입 테마, 영업KC 이름\n• STEP 2: 이메일/SMS 알림 설정\n\n※ 입력 필드만 비워집니다.\n※ Supabase 데이터는 그대로 유지됩니다.');
 
     if (!confirmed) {
-        console.log('❌ 초기화 취소됨');
+        console.log('❌ 등록 취소됨');
         return;
     }
+
+    // UI 상태 변경: 힌트 텍스트 숨기고 취소 버튼 표시
+    const newKcHint = document.getElementById('newKcHint');
+    const newKcCancelBtn = document.getElementById('newKcCancelBtn');
+
+    if (newKcHint) {
+        newKcHint.style.display = 'none';
+        console.log('  ✅ 힌트 텍스트 숨김');
+    }
+
+    if (newKcCancelBtn) {
+        newKcCancelBtn.style.display = 'flex';
+        console.log('  ✅ 등록 취소 버튼 표시');
+    }
+
+    // 실제 초기화 진행
+    resetAllSettings();
+}
+
+// 신규 영업 KC 등록 취소
+function cancelNewKcRegistration() {
+    console.log('❌ 신규 영업 KC 등록 취소');
+
+    const confirmed = confirm('등록을 취소하시겠습니까?\n\n이미 입력한 내용은 유지되지 않습니다.');
+
+    if (!confirmed) {
+        return;
+    }
+
+    // UI 상태 복원: 취소 버튼 숨기고 힌트 텍스트 표시
+    const newKcHint = document.getElementById('newKcHint');
+    const newKcCancelBtn = document.getElementById('newKcCancelBtn');
+
+    if (newKcHint) {
+        newKcHint.style.display = 'inline';
+        console.log('  ✅ 힌트 텍스트 표시');
+    }
+
+    if (newKcCancelBtn) {
+        newKcCancelBtn.style.display = 'none';
+        console.log('  ✅ 등록 취소 버튼 숨김');
+    }
+
+    // localStorage에서 기존 데이터 다시 로드하여 복원
+    loadAdminSettingsFromCloud();
+
+    alert('등록이 취소되었습니다.');
+    console.log('✅ 등록 취소 완료');
+}
+
+// 모든 설정 초기화 (신규 영업 KC 등록) - 내부 로직만 수행
+function resetAllSettings() {
+    console.log('🔄 모든 설정 초기화 시작');
 
     try {
         // STEP 1: 기본 설정 초기화
@@ -2411,6 +2464,23 @@ function resetAllSettings() {
         // STEP 2: 알림 설정 초기화
         localStorage.removeItem('savedEmailAddresses');
         localStorage.removeItem('savedPhoneNumbers');
+
+        // STEP 3: QR 코드 카드 내부만 초기화 (생성된 QR 관리 섹션은 절대 건드리지 않음)
+        console.log('🗑️ STEP 3 카드 내부 QR 초기화 중...');
+
+        const qrListInCard = document.getElementById('qrListInCard');
+        if (qrListInCard) {
+            qrListInCard.innerHTML = '';
+            console.log('  ✅ STEP 3 카드 QR 목록 비움');
+        }
+
+        const qrListContainer = document.getElementById('qrListContainer');
+        if (qrListContainer) {
+            qrListContainer.style.display = 'none';
+            console.log('  ✅ STEP 3 카드 QR 컨테이너 숨김');
+        }
+
+        console.log('✅ STEP 3 카드 초기화 완료 (하단 "생성된 QR 코드 관리"는 유지)');
 
         // 화면 표시 초기화
         const apartmentNameDisplay = document.getElementById('apartmentNameDisplay');
@@ -2445,7 +2515,7 @@ function resetAllSettings() {
         }
 
         console.log('✅ 모든 설정이 초기화되었습니다');
-        alert('✅ 모든 설정이 초기화되었습니다!\n\n새로운 영업 KC를 등록해주세요.');
+        alert('✅ 초기화 완료!\n\n새로운 영업 KC 정보를 입력하세요.\n\nSTEP 1 → STEP 2 → STEP 3 순서로 진행');
 
         // STEP 1 카드로 스크롤
         goToSettings();

@@ -33,11 +33,15 @@
 
                 <!-- 신규 영업 KC 등록 버튼 -->
                 <div class="new-kc-register-section">
-                    <button type="button" class="new-kc-register-btn" onclick="resetAllSettings()">
+                    <button type="button" class="new-kc-register-btn" id="newKcRegisterBtn" onclick="startNewKcRegistration()">
                         <span class="btn-icon">✨</span>
                         <span class="btn-text">신규 영업 KC 등록</span>
                     </button>
-                    <span class="new-kc-hint">새로운 QR을 만드세요</span>
+                    <span class="new-kc-hint" id="newKcHint">새로운 QR을 만드세요</span>
+                    <button type="button" class="new-kc-cancel-btn" id="newKcCancelBtn" onclick="cancelNewKcRegistration()" style="display: none;">
+                        <span class="btn-icon">❌</span>
+                        <span class="btn-text">등록 취소</span>
+                    </button>
                 </div>
 
                 <div class="features-grid">
@@ -51,19 +55,19 @@
                         <div class="card-buttons">
                             <button type="button" class="feature-btn primary" onclick="showApartmentNameModal()">
                                 <span class="btn-icon">🏢</span>
-                                <span class="btn-label">아파트 이름 설정</span>
+                                <span class="btn-label">아파트 이름 등록</span>
                             </button>
                             <span id="apartmentNameDisplay" class="status-display"></span>
 
                             <button type="button" class="feature-btn primary" onclick="showEntryIssueModal()">
                                 <span class="btn-icon">🎨</span>
-                                <span class="btn-label">진입 테마 설정</span>
+                                <span class="btn-label">진입 테마 등록</span>
                             </button>
                             <span id="entryIssueDisplay" class="status-display"></span>
 
                             <button type="button" class="feature-btn primary" onclick="showAgencyNameModal()">
                                 <span class="btn-icon">👥</span>
-                                <span class="btn-label">영업KC 이름</span>
+                                <span class="btn-label">영업KC 이름 등록</span>
                             </button>
                             <span id="agencyNameDisplay" class="status-display"></span>
                         </div>
@@ -316,7 +320,7 @@
                 <div class="email-form">
                     <div class="form-group">
                         <label for="entryIssueInput">진입 테마</label>
-                        <textarea id="entryIssueInput" rows="3" placeholder="예: 고급스러운 현대적 디자인"></textarea>
+                        <textarea id="entryIssueInput" rows="3" placeholder="예: 허브, 리스타트, CAT6"></textarea>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="submit-btn" onclick="saveEntryIssue()">저장</button>
@@ -333,8 +337,8 @@
                 <h2>👥 영업KC 이름 설정</h2>
                 <div class="email-form">
                     <div class="form-group">
-                        <label for="agencyNameInput">영업KC 이름</label>
-                        <input type="text" id="agencyNameInput" placeholder="예: 서울강남KC">
+                        <label for="agencyNameInput">영업KC 이름 등록</label>
+                        <input type="text" id="agencyNameInput" placeholder="예:스피드_차미언">
                     </div>
                     <div class="form-actions">
                         <button type="button" class="submit-btn" onclick="saveAgencyName()">저장</button>
