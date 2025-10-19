@@ -1834,14 +1834,37 @@ function showResult(applicationData = null) {
     resultSection.style.display = 'block';
     console.log('✅ 결과 화면 표시');
     
-    // 화면을 맨 위로 스크롤 (결과 화면이 맨 위에서부터 보이도록)
+    // ★★★ 화면을 맨 위로 스크롤 (3가지 방법 동시 적용) ★★★
+    // 방법 1: 즉시 스크롤
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    console.log('✅ 즉시 스크롤 (top = 0)');
+    
+    // 방법 2: result 섹션으로 스크롤
+    setTimeout(() => {
+        resultSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start',
+            inline: 'nearest'
+        });
+        console.log('✅ resultSection으로 스크롤');
+    }, 50);
+    
+    // 방법 3: 다시 한번 맨 위로 (확실하게)
     setTimeout(() => {
         window.scrollTo({
             top: 0,
+            left: 0,
             behavior: 'smooth'
         });
-        console.log('✅ 화면 맨 위로 스크롤 완료');
-    }, 100);
+        // container도 스크롤
+        const container = document.querySelector('.container');
+        if (container) {
+            container.scrollTop = 0;
+        }
+        console.log('✅ 최종 맨 위로 스크롤 완료');
+    }, 200);
 
     console.log('결과 페이지 표시:', applicationData);
 }
