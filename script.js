@@ -241,9 +241,17 @@ async function loadAdminSettingsFromCloud() {
             if (data.phones) localStorage.setItem('savedPhoneNumbers', JSON.stringify(data.phones));
             if (data.emails) localStorage.setItem('savedEmailAddresses', JSON.stringify(data.emails));
 
-            // 아파트명 캐시 업데이트
-            currentApartmentName = data.apartment_name || 'Speed 아파트';
-            console.log('현재 아파트명:', currentApartmentName);
+            // 아파트명 캐시 업데이트 (고객 모드에서는 QR별 아파트명을 유지)
+            const urlParams = new URLSearchParams(window.location.search);
+            const isCustomerMode = urlParams.has('customer') || urlParams.has('apply') || urlParams.get('mode') === 'customer';
+            
+            if (!isCustomerMode) {
+                // 관리자 모드에서만 admin_settings의 아파트명 사용
+                currentApartmentName = data.apartment_name || 'Speed 아파트';
+                console.log('현재 아파트명 (관리자):', currentApartmentName);
+            } else {
+                console.log('고객 모드: currentApartmentName 유지 (QR별 설정):', currentApartmentName);
+            }
 
             adminSettings = data;
             console.log('Supabase에서 관리자 설정을 로드했습니다.');
@@ -272,8 +280,16 @@ function loadAdminSettingsLocal() {
             apartment_name: 'Speed 아파트' // 로컬 백업 시 기본값
         };
 
-        // 아파트명 캐시 업데이트
-        currentApartmentName = settings.apartment_name;
+        // 아파트명 캐시 업데이트 (고객 모드에서는 QR별 아파트명을 유지)
+        const urlParams = new URLSearchParams(window.location.search);
+        const isCustomerMode = urlParams.has('customer') || urlParams.has('apply') || urlParams.get('mode') === 'customer';
+        
+        if (!isCustomerMode) {
+            currentApartmentName = settings.apartment_name;
+            console.log('현재 아파트명 (로컬):', currentApartmentName);
+        } else {
+            console.log('고객 모드: currentApartmentName 유지 (QR별 설정):', currentApartmentName);
+        }
 
         adminSettings = settings;
         console.log('로컬에서 관리자 설정을 로드했습니다.');
@@ -1882,8 +1898,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     currentQrId = `${APARTMENT_ID}_${shortCode}`;
                     console.log('📱 QR ID 추출 성공:', currentQrId, '(짧은 코드:', shortCode, ')');
                     
-                    // ★ QR 설정 로드 (아파트 이름 등)
-                    loadQRSettings(currentQrId);
+                    // ★ 고객 모드 전용: QR 데이터 조회 및 currentApartmentName 설정
+                    (async () => {
+                        try {
+                            if (!window.supabase) {
+                                console.warn('⚠️ Supabase 미초기화, 기본값 사용');
+                                return;
+                            }
+
+                            const { data: qrData, error } = await window.supabase
+                                .from('qr_codes')
+                                .select('apartment_name, emails, phones')
+                                .eq('id', currentQrId)
+                                .single();
+
+                            if (error) {
+                                console.error('❌ QR 데이터 조회 실패:', error);
+                                return;
+                            }
+
+                            if (qrData && qrData.apartment_name) {
+                                currentApartmentName = qrData.apartment_name;
+                                console.log('✅ 고객 모드: currentApartmentName 설정 완료:', currentApartmentName);
+                                console.log('📧 이메일 수신자:', qrData.emails);
+                                console.log('📱 SMS 수신자:', qrData.phones);
+                            } else {
+                                console.warn('⚠️ QR 데이터에 apartment_name 없음');
+                            }
+                        } catch (error) {
+                            console.error('❌ QR 데이터 로드 오류:', error);
+                        }
+                    })();
                 } else {
                     console.log('ℹ️ QR ID 없음 (일반 고객 모드)');
                 }
