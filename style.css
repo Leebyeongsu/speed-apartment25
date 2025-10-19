@@ -1220,6 +1220,24 @@ body.customer-mode .admin-landing {
     display: none !important;
 }
 
+/* 고객 모드에서 결과 화면 표시 시 헤더와 폼 숨김 */
+body.customer-mode #result:not([style*="display: none"]) ~ * header,
+body.customer-mode #result[style*="display: block"] ~ * header {
+    display: none !important;
+}
+
+/* 결과 화면이 보일 때 신청 폼 완전히 숨김 */
+body.customer-mode.result-shown #applicationForm,
+body.customer-mode.result-shown header {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
 /* ========================================
    랜딩 페이지 스타일
    ======================================== */
