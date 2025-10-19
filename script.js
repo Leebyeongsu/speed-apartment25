@@ -1881,6 +1881,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const shortCode = decodeURIComponent(qrIdParam);
                     currentQrId = `${APARTMENT_ID}_${shortCode}`;
                     console.log('📱 QR ID 추출 성공:', currentQrId, '(짧은 코드:', shortCode, ')');
+                    
+                    // ★ QR 설정 로드 (아파트 이름 등)
+                    loadQRSettings(currentQrId);
                 } else {
                     console.log('ℹ️ QR ID 없음 (일반 고객 모드)');
                 }
