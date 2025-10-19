@@ -2390,8 +2390,19 @@ function goToSettings() {
     }
 }
 
-// 신규 영업 KC 등록 시작
+// 신규 영업 KC 등록 시작 (편집 모드 체크 추가)
 function startNewKcRegistration() {
+    // ★ 편집 모드인지 확인
+    const currentEditingQRId = localStorage.getItem('currentEditingQRId');
+
+    if (currentEditingQRId) {
+        // 편집 모드: 저장 함수 호출
+        console.log('💾 편집 모드: saveAdminSettingsFromEdit 호출');
+        saveAdminSettingsFromEdit();
+        return;
+    }
+
+    // 신규 등록 모드
     console.log('✨ 신규 영업 KC 등록 시작');
 
     // 확인 메시지
@@ -2861,7 +2872,7 @@ function renderQRCard(container, qrList, prefix) {
                 <button type="button" class="qr-action-btn download" onclick="downloadQRCode('${prefix}-${qr.id}', '${qr.qr_name}', 'jpg')">
                     <span>💾 JPG</span>
                 </button>
-                <button type="button" class="qr-action-btn edit" onclick="goToSettings()">
+                <button type="button" class="qr-action-btn edit" onclick="loadQRForEdit('${qr.id}')">
                     <span>⚙️ 기본 설정 수정</span>
                 </button>
                 <button type="button" class="qr-action-btn delete" onclick="deleteQRCode('${qr.id}', '${qr.qr_name}')">
@@ -3011,6 +3022,309 @@ async function toggleQRActive(qrId, newState) {
     }
 }
 
+// QR 기본 설정 불러오기 및 수정 모드 (버튼 텍스트 동적 변경)
+async function loadQRForEdit(qrId) {
+    try {
+        console.log(`⚙️ QR 설정 불러오기 시작: ${qrId}`);
+
+        // Supabase에서 QR 데이터 조회
+        if (!supabase) {
+            console.error('❌ Supabase가 초기화되지 않았습니다.');
+            alert('데이터베이스 연결이 필요합니다.');
+            return;
+        }
+
+        const { data: qrData, error } = await supabase
+            .from('qr_codes')
+            .select('*')
+            .eq('id', qrId)
+            .single();
+
+        if (error) {
+            console.error('❌ QR 데이터 조회 실패:', error);
+            alert(`QR 데이터를 불러오는데 실패했습니다:\n${error.message}`);
+            return;
+        }
+
+        if (!qrData) {
+            console.error('❌ QR 데이터를 찾을 수 없습니다.');
+            alert('QR 데이터를 찾을 수 없습니다.');
+            return;
+        }
+
+        console.log('✅ QR 데이터 로드 성공:', qrData);
+
+        // ★ 버튼 텍스트를 동적으로 변경 (HTML 수정 없이 JavaScript로만)
+        const newKcRegisterBtn = document.getElementById('newKcRegisterBtn');
+        if (newKcRegisterBtn) {
+            const btnText = newKcRegisterBtn.querySelector('.btn-text');
+            const btnIcon = newKcRegisterBtn.querySelector('.btn-icon');
+            if (btnText) {
+                btnText.textContent = '영업KC 기본/알림 설정 수정';
+            }
+            if (btnIcon) {
+                btnIcon.textContent = '💾';
+            }
+            console.log('✅ 버튼 텍스트를 "영업KC 기본/알림 설정 수정"으로 변경');
+        }
+
+        // 힌트 텍스트도 변경
+        const newKcHint = document.getElementById('newKcHint');
+        if (newKcHint) {
+            newKcHint.textContent = '수정된 설정을 Supabase에 저장합니다';
+        }
+
+        // localStorage 초기화 (기존 데이터 제거)
+        localStorage.removeItem('apartmentName');
+        localStorage.removeItem('entryIssue');
+        localStorage.removeItem('agencyName');
+        localStorage.removeItem('savedEmailAddresses');
+        localStorage.removeItem('savedPhoneNumbers');
+
+        // QR 데이터를 localStorage에 저장
+        if (qrData.apartment_name) {
+            localStorage.setItem('apartmentName', qrData.apartment_name);
+            currentApartmentName = qrData.apartment_name;
+            console.log('✅ QR 로드 시 currentApartmentName 업데이트:', currentApartmentName);
+        }
+        if (qrData.entry_issue) {
+            localStorage.setItem('entryIssue', qrData.entry_issue);
+        }
+        if (qrData.agency_name) {
+            localStorage.setItem('agencyName', qrData.agency_name);
+        }
+        if (qrData.emails && Array.isArray(qrData.emails)) {
+            localStorage.setItem('savedEmailAddresses', JSON.stringify(qrData.emails));
+        }
+        if (qrData.phones && Array.isArray(qrData.phones)) {
+            localStorage.setItem('savedPhoneNumbers', JSON.stringify(qrData.phones));
+        }
+
+        // STEP 1 화면 업데이트
+        const apartmentNameDisplay = document.getElementById('apartmentNameDisplay');
+        const entryIssueDisplay = document.getElementById('entryIssueDisplay');
+        const agencyNameDisplay = document.getElementById('agencyNameDisplay');
+
+        if (apartmentNameDisplay) {
+            apartmentNameDisplay.textContent = qrData.apartment_name || '';
+            if (qrData.apartment_name) {
+                apartmentNameDisplay.classList.add('has-content');
+            } else {
+                apartmentNameDisplay.classList.remove('has-content');
+            }
+        }
+
+        if (entryIssueDisplay) {
+            entryIssueDisplay.textContent = qrData.entry_issue || '';
+            if (qrData.entry_issue) {
+                entryIssueDisplay.classList.add('has-content');
+            } else {
+                entryIssueDisplay.classList.remove('has-content');
+            }
+        }
+
+        if (agencyNameDisplay) {
+            agencyNameDisplay.textContent = qrData.agency_name || '';
+            if (qrData.agency_name) {
+                agencyNameDisplay.classList.add('has-content');
+            } else {
+                agencyNameDisplay.classList.remove('has-content');
+            }
+        }
+
+        // STEP 2 화면 업데이트
+        displaySavedInputs();
+
+        // STEP 3에 QR 이미지 복사
+        const qrListInCard = document.getElementById('qrListInCard');
+        if (qrListInCard && qrData.qr_url) {
+            // 기존 QR 제거
+            qrListInCard.innerHTML = '';
+
+            // QR 카드 생성
+            const qrCardHtml = `
+                <div class="qr-card" data-qr-id="${qrData.id}">
+                    <div class="qr-card-header">
+                        <div class="qr-card-title">
+                            <span class="qr-name">${qrData.qr_name}</span>
+                            <span class="qr-status ${qrData.is_active ? 'active' : 'inactive'}">
+                                ${qrData.is_active ? '활성' : '비활성'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="qr-code-preview" id="qr-preview-step3-${qrData.id}"></div>
+                </div>
+            `;
+            qrListInCard.innerHTML = qrCardHtml;
+
+            // QR 컨테이너 표시
+            const qrListContainer = document.getElementById('qrListContainer');
+            if (qrListContainer) {
+                qrListContainer.style.display = 'block';
+            }
+
+            // QR 코드 생성
+            const previewDiv = document.getElementById(`qr-preview-step3-${qrData.id}`);
+            if (previewDiv) {
+                try {
+                    new QRCode(previewDiv, {
+                        text: qrData.qr_url,
+                        width: 200,
+                        height: 200,
+                        colorDark: "#000000",
+                        colorLight: "#FFFFFF",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                    console.log('✅ STEP 3에 QR 코드 복사 완료');
+                } catch (error) {
+                    console.error('❌ QR 미리보기 생성 실패:', error);
+                    previewDiv.innerHTML = '<p style="color: #999;">미리보기 생성 실패</p>';
+                }
+            }
+        }
+
+        // 현재 편집 중인 QR ID를 저장 (나중에 저장할 때 사용)
+        localStorage.setItem('currentEditingQRId', qrId);
+
+        // STEP 1 카드로 스크롤
+        const featuresSection = document.querySelector('.features-section');
+        if (featuresSection) {
+            featuresSection.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+
+            // STEP 1 카드 하이라이트 효과
+            const step1Card = document.querySelector('.feature-card.step-card');
+            if (step1Card) {
+                step1Card.style.transition = 'all 0.3s ease';
+                step1Card.style.boxShadow = '0 0 30px rgba(76, 175, 80, 0.6)';
+                step1Card.style.transform = 'scale(1.02)';
+
+                setTimeout(() => {
+                    step1Card.style.boxShadow = '';
+                    step1Card.style.transform = '';
+                }, 1500);
+            }
+        }
+
+        console.log('✅ QR 설정 불러오기 완료');
+
+    } catch (error) {
+        console.error('❌ QR 설정 불러오기 중 오류:', error);
+        alert(`QR 설정을 불러오는데 실패했습니다:\n${error.message}`);
+    }
+}
+
+// 수정된 관리자 설정 저장 (편집 모드 전용)
+async function saveAdminSettingsFromEdit() {
+    try {
+        console.log('💾 수정된 관리자 설정 저장 시작');
+
+        // 현재 편집 중인 QR ID 확인
+        const currentEditingQRId = localStorage.getItem('currentEditingQRId');
+
+        if (!currentEditingQRId) {
+            console.error('❌ 편집 중인 QR ID가 없습니다.');
+            alert('편집 중인 QR 코드 정보를 찾을 수 없습니다.');
+            return;
+        }
+
+        // localStorage에서 데이터 수집
+        const apartmentName = localStorage.getItem('apartmentName') || '';
+        const entryIssue = localStorage.getItem('entryIssue') || '';
+        const agencyName = localStorage.getItem('agencyName') || '';
+        const emails = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
+        const phones = JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]');
+
+        // 확인 다이얼로그
+        const confirmMessage = `다음 내용으로 저장하시겠습니까?\n\n` +
+            `아파트명: ${apartmentName || '(없음)'}\n` +
+            `진입 테마: ${entryIssue || '(없음)'}\n` +
+            `영업 KC: ${agencyName || '(없음)'}\n` +
+            `이메일: ${emails.length}개\n` +
+            `전화번호: ${phones.length}개`;
+
+        if (!confirm(confirmMessage)) {
+            console.log('💡 사용자가 저장을 취소했습니다.');
+            return;
+        }
+
+        // Supabase에 저장 (기존 saveAdminSettingsToCloud 함수 활용)
+        await saveAdminSettingsToCloud();
+
+        // QR 코드 테이블도 업데이트 (해당 QR의 정보 동기화)
+        if (supabase) {
+            console.log(`🔄 QR 코드 테이블 업데이트 중... ID: ${currentEditingQRId}`);
+            console.log('📝 업데이트할 데이터:', {
+                apartment_name: apartmentName,
+                entry_issue: entryIssue,
+                agency_name: agencyName,
+                emails: emails,
+                phones: phones
+            });
+
+            const { error: qrUpdateError } = await supabase
+                .from('qr_codes')
+                .update({
+                    apartment_name: apartmentName,
+                    entry_issue: entryIssue,
+                    agency_name: agencyName,
+                    emails: emails,
+                    phones: phones
+                })
+                .eq('id', currentEditingQRId);
+
+            if (qrUpdateError) {
+                console.error('❌ QR 코드 정보 업데이트 실패:', qrUpdateError);
+                alert(`QR 코드 정보 업데이트 실패:\n${qrUpdateError.message}\n\n관리자 설정은 저장되었습니다.`);
+            } else {
+                console.log('✅ QR 코드 정보 업데이트 성공');
+            }
+        }
+
+        // 성공 메시지
+        alert('✅ 설정이 성공적으로 저장되었습니다!');
+
+        // 편집 모드 종료 - 버튼 텍스트 원래대로 복원
+        localStorage.removeItem('currentEditingQRId');
+
+        const newKcRegisterBtn = document.getElementById('newKcRegisterBtn');
+        if (newKcRegisterBtn) {
+            const btnText = newKcRegisterBtn.querySelector('.btn-text');
+            const btnIcon = newKcRegisterBtn.querySelector('.btn-icon');
+            if (btnText) {
+                btnText.textContent = '신규 영업 KC 등록';
+            }
+            if (btnIcon) {
+                btnIcon.textContent = '✨';
+            }
+            console.log('✅ 버튼 텍스트를 "신규 영업 KC 등록"으로 복원');
+        }
+
+        // 힌트 텍스트도 복원
+        const newKcHint = document.getElementById('newKcHint');
+        if (newKcHint) {
+            newKcHint.textContent = '새로운 QR을 만드세요';
+        }
+
+        // QR 목록 새로고침
+        await loadQRList();
+
+        // 랜딩 페이지 상단으로 스크롤
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+
+        console.log('✅ 관리자 설정 저장 완료');
+
+    } catch (error) {
+        console.error('❌ 관리자 설정 저장 중 오류:', error);
+        alert(`설정 저장 중 오류가 발생했습니다:\n${error.message}`);
+    }
+}
+
 // 전역 함수로 노출
 window.showQRNameModal = showQRNameModal;
 window.closeQRNameModal = closeQRNameModal;
@@ -3019,3 +3333,5 @@ window.loadQRList = loadQRList;
 window.downloadQRCode = downloadQRCode;
 window.deleteQRCode = deleteQRCode;
 window.toggleQRActive = toggleQRActive;
+window.loadQRForEdit = loadQRForEdit;
+window.saveAdminSettingsFromEdit = saveAdminSettingsFromEdit;
