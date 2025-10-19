@@ -1813,9 +1813,22 @@ function showResult(applicationData = null) {
         if (promotionFlyer) promotionFlyer.style.display = 'none';
     }
 
-    // 폼 숨기고 결과 표시
-    document.getElementById('applicationForm').style.display = 'none';
+    // 폼과 헤더 숨기고 결과만 표시 (!important로 강제)
+    const appForm = document.getElementById('applicationForm');
+    if (appForm) {
+        appForm.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        console.log('✅ 신청서 폼 완전히 숨김 (!important)');
+    }
+    
+    // 헤더도 숨김 (신청 완료 후에는 필요 없음)
+    const header = document.querySelector('header');
+    if (header) {
+        header.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        console.log('✅ 헤더 영역 완전히 숨김 (!important)');
+    }
+    
     resultSection.style.display = 'block';
+    console.log('✅ 결과 화면 표시');
 
     console.log('결과 페이지 표시:', applicationData);
 }
