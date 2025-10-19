@@ -1706,6 +1706,15 @@ function showResult(applicationData = null) {
     // 조건부 UI 제어를 위한 요소 참조
     const promotionFlyer = document.getElementById('promotionFlyer');
     const resultActions = document.getElementById('resultActions');
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 showResult 함수 실행 (v=20251019)');
+    console.log('🔍 promotionFlyer 요소 존재:', !!promotionFlyer);
+    console.log('🔍 resultActions 요소 존재:', !!resultActions);
+    if (promotionFlyer) {
+        console.log('🔍 promotionFlyer HTML:', promotionFlyer.innerHTML.substring(0, 100));
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     if (applicationData) {
         // Supabase 컬럼명 submittedAt 우선 사용
@@ -1741,27 +1750,54 @@ function showResult(applicationData = null) {
 
         // workType에 따른 조건부 UI 표시 로직
         const workType = applicationData.workType || applicationData.work_type;
-        console.log('WorkType 확인:', workType);
+        console.log('🔍 WorkType 확인:', workType);
+        console.log('🔍 promotionFlyer 요소:', promotionFlyer);
+        console.log('🔍 resultActions 요소:', resultActions);
 
         if (workType === 'interior') { // KT 선택
             // KT 선택 시: 버튼들 표시, 전단지 숨김
-            resultActions.style.display = 'block';
+            if (resultActions) resultActions.style.display = 'flex';
             if (promotionFlyer) promotionFlyer.style.display = 'none';
-            console.log('KT 선택 - 버튼 표시, 전단지 숨김');
+            console.log('✅ KT 선택 - 버튼 표시, 이미지 숨김');
 
         } else if (workType === 'exterior' ||   // SKT
                    workType === 'plumbing' ||   // LGU+
                    workType === 'electrical') { // 기타(지역방송)
             // SKT/LGU+/기타 선택 시: 버튼들 숨김, 전단지 표시
-            resultActions.style.display = 'none';
-            if (promotionFlyer) promotionFlyer.style.display = 'block';
-            console.log('KT가 아닌 통신사 선택 - 버튼 숨김, 전단지 표시');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🎯 조건 만족: KT가 아닌 통신사 (' + workType + ')');
+            
+            if (resultActions) {
+                resultActions.style.display = 'none';
+                console.log('✅ resultActions 숨김 완료');
+            }
+            
+            if (promotionFlyer) {
+                promotionFlyer.style.display = 'block';
+                promotionFlyer.style.visibility = 'visible';
+                promotionFlyer.style.opacity = '1';
+                console.log('✅ promotionFlyer 표시 설정 완료');
+                console.log('   - display:', promotionFlyer.style.display);
+                console.log('   - visibility:', promotionFlyer.style.visibility);
+                console.log('📷 이미지 1: m_evt2685_genieTV_vis.jpg');
+                console.log('📷 이미지 2: m_evt2685_genieTV_cont02.jpg');
+                
+                // 이미지 요소들도 확인
+                const images = promotionFlyer.querySelectorAll('img');
+                console.log('🖼️ 찾은 이미지 개수:', images.length);
+                images.forEach((img, idx) => {
+                    console.log(`   이미지 ${idx + 1}: ${img.src}`);
+                });
+            } else {
+                console.error('❌ promotionFlyer 요소를 찾을 수 없습니다!');
+            }
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         } else {
             // 기본값: 버튼들 표시 (이전 동작 유지)
-            resultActions.style.display = 'block';
+            if (resultActions) resultActions.style.display = 'flex';
             if (promotionFlyer) promotionFlyer.style.display = 'none';
-            console.log('기본값 - 버튼 표시');
+            console.log('⚠️ 기본값 - 버튼 표시');
         }
     } else {
         resultContent.innerHTML = `
@@ -1773,7 +1809,7 @@ function showResult(applicationData = null) {
         `;
 
         // 데이터가 없는 경우 기본값으로 버튼 표시
-        resultActions.style.display = 'block';
+        if (resultActions) resultActions.style.display = 'flex';
         if (promotionFlyer) promotionFlyer.style.display = 'none';
     }
 

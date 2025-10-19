@@ -781,9 +781,19 @@ header p {
 .flyer-image {
     max-width: 100%;
     height: auto;
+    display: block;
+    margin: 15px auto;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
+}
+
+.flyer-image:first-child {
+    margin-top: 0;
+}
+
+.flyer-image:last-child {
+    margin-bottom: 0;
 }
 
 .flyer-image:hover {
