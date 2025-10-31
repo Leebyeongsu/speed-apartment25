@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git remote set-url:*)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nchore: update project to speed_apartment21\n\n- README.md 제목을 \"Speed 아파트 통신 환경 개선 신청서 홈페이지 작성\"으로 수정\n- GitHub 저장소 링크 추가: https://github.com/Leebyeongsu/speed_apartmant21\n- APARTMENT_ID를 speed_apartment5에서 speed_apartment21로 변경\n- 모든 주석 및 로그 메시지를 speed_apartment21로 통일\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: APARTMENT_ID를 speed_apartment21로 문서 동기화\n\n- CLAUDE.md의 모든 APARTMENT_ID 참조를 speed_apartment21로 업데이트\n- README.md의 아파트 ID 예시 코드 수정\n- README.md 프로젝트 구조 디렉토리명 수정\n- 실제 코드(script.js:5)와 문서 일치화\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: 관리자 랜딩 페이지로 전면 리뉴얼 및 QR 코드 기능 개선\n\n주요 변경사항:\n- 관리자 모드를 랜딩 페이지 형식으로 완전히 재설계\n- Hero 섹션, Features 섹션(STEP 1/2/3), CTA 섹션 추가\n- QR 코드 생성/삭제 기능을 STEP 3 카드 내부로 통합\n- QR 다운로드 시 연한 녹색 테두리(10px) 자동 추가\n- 버튼 레이아웃을 가로 배치로 변경 및 텍스트 줄바꿈\n- 모바일 반응형 디자인 유지\n- 고객 모드는 기존 기능 그대로 유지\n\n기술 스택:\n- Pure JavaScript, HTML5, CSS3\n- Supabase 연동, EmailJS 통합\n- QR 코드: Canvas API로 테두리 추가 기능 구현\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git restore:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
