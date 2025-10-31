@@ -109,6 +109,8 @@ let formData = {};
 let currentQRDataURL = null;
 let adminSettings = null; // 관리자 설정 캐시
 let currentApartmentName = 'Speed 아파트'; // 아파트명 캐시 (기본값)
+let currentQRRecipientEmails = []; // QR별 이메일 수신자 (고객 모드에서 설정)
+let currentQRRecipientPhones = []; // QR별 전화번호 수신자 (고객 모드에서 설정)
 
 // 안전한 logEmailAttempt 전역 래퍼 (notification-service 모듈이 로드되지 않은 환경 방어)
 if (typeof window !== 'undefined' && typeof window.logEmailAttempt !== 'function') {
@@ -582,16 +584,24 @@ async function sendEmailToAdmins(applicationData) {
         });
         
 
-    // 저장된 관리자 이메일 주소 가져오기
-    const savedEmailsRaw = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
-    // 중복 제거, 공백 제거, 최대 3개 제한
-    const savedEmails = Array.from(new Set((savedEmailsRaw || []).map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3);
-    console.log('DEBUG sendEmailToAdmins - savedEmailsRaw:', savedEmailsRaw, '=> filtered:', savedEmails);
+    // 이메일 수신자 결정: QR별 이메일 우선, 없으면 localStorage 사용
+    let savedEmails = [];
+    
+    if (currentQRRecipientEmails && currentQRRecipientEmails.length > 0) {
+        // QR별 이메일 사용 (고객 모드에서 설정됨)
+        savedEmails = Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3);
+        console.log('✅ sendEmailToAdmins - QR별 이메일 수신자 사용:', savedEmails);
+    } else {
+        // 폴백: localStorage에서 이메일 가져오기
+        const savedEmailsRaw = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
+        savedEmails = Array.from(new Set((savedEmailsRaw || []).map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3);
+        console.log('📧 sendEmailToAdmins - localStorage 이메일 수신자 사용:', savedEmails);
+    }
 
-        if (savedEmails.length === 0) {
-            console.warn('⚠️ 저장된 관리자 이메일 주소가 없습니다.');
-            return false;
-        }
+    if (savedEmails.length === 0) {
+        console.warn('⚠️ 저장된 관리자 이메일 주소가 없습니다.');
+        return false;
+    }
 
         // EmailJS 완전성 검사
         if (typeof emailjs === 'undefined') {
@@ -840,25 +850,36 @@ async function sendNotificationsViaEdgeFunction(applicationData) {
             isMobile: /Mobile|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent)
         });
 
-        // 관리자 설정 확인
-        console.log('👑 현재 관리자 설정 확인...');
-        const { data: adminCheck, error: adminError } = await supabase
-            .from('admin_settings')
-            .select('emails')
-            .eq('apartment_id', APARTMENT_ID)  // speed_apartment521로 검색
-            .single();
+        // 이메일 수신자 결정: QR별 이메일 우선, 없으면 admin_settings 사용
+        let adminEmails = [];
+        
+        if (currentQRRecipientEmails && currentQRRecipientEmails.length > 0) {
+            // QR별 이메일 사용 (고객 모드에서 설정됨)
+            adminEmails = Array.isArray(currentQRRecipientEmails)
+                ? Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3)
+                : [];
+            console.log('✅ QR별 이메일 수신자 사용:', adminEmails);
+        } else {
+            // 폴백: admin_settings에서 이메일 조회
+            console.log('👑 QR별 이메일 없음, admin_settings 조회...');
+            const { data: adminCheck, error: adminError } = await supabase
+                .from('admin_settings')
+                .select('emails')
+                .eq('apartment_id', APARTMENT_ID)
+                .single();
 
-        if (adminError || !adminCheck?.emails || adminCheck.emails.length === 0) {
-            console.error('❌ 관리자 이메일 설정 문제:', adminError?.message);
-            throw new Error('관리자 이메일 설정을 찾을 수 없습니다.');
+            if (adminError || !adminCheck?.emails || adminCheck.emails.length === 0) {
+                console.error('❌ 관리자 이메일 설정 문제:', adminError?.message);
+                throw new Error('관리자 이메일 설정을 찾을 수 없습니다.');
+            }
+
+            adminEmails = Array.isArray(adminCheck.emails)
+                ? Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3)
+                : [];
+            console.log('📧 admin_settings 이메일 수신자 사용:', adminEmails);
         }
 
-        // 관리자 이메일 목록 정리: 중복 제거, 공백 제거, 최대 3개 제한
-        const adminEmails = Array.isArray(adminCheck.emails)
-            ? Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3)
-            : [];
-
-    console.log('DEBUG sendNotificationsViaEdgeFunction - adminCheck.emails (raw):', adminCheck.emails, '=> filtered adminEmails:', adminEmails);
+        console.log('DEBUG sendNotificationsViaEdgeFunction - 최종 adminEmails:', adminEmails);
 
         // EmailJS로 메일 발송
         const results = await Promise.all(adminEmails.map(async (email) => {
@@ -1827,44 +1848,34 @@ function showResult(applicationData = null) {
         console.log('✅ 헤더 영역 완전히 숨김 (!important)');
     }
     
+    // ★★★ 먼저 화면을 맨 위로 스크롤 (결과 표시 전) ★★★
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    const container = document.querySelector('.container');
+    if (container) {
+        container.scrollTop = 0;
+    }
+    console.log('✅ 화면 맨 위로 스크롤 (결과 표시 전)');
+    
     // body에 result-shown 클래스 추가 (CSS 규칙 활성화)
     document.body.classList.add('result-shown');
     console.log('✅ body에 result-shown 클래스 추가');
     
+    // 결과 섹션 표시
     resultSection.style.display = 'block';
     console.log('✅ 결과 화면 표시');
     
-    // ★★★ 화면을 맨 위로 스크롤 (3가지 방법 동시 적용) ★★★
-    // 방법 1: 즉시 스크롤
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    console.log('✅ 즉시 스크롤 (top = 0)');
-    
-    // 방법 2: result 섹션으로 스크롤
+    // 결과 섹션 표시 직후 다시 한번 맨 위로 (확실하게)
     setTimeout(() => {
-        resultSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start',
-            inline: 'nearest'
-        });
-        console.log('✅ resultSection으로 스크롤');
-    }, 50);
-    
-    // 방법 3: 다시 한번 맨 위로 (확실하게)
-    setTimeout(() => {
-        window.scrollTo({
-            top: 0,
-            left: 0,
-            behavior: 'smooth'
-        });
-        // container도 스크롤
-        const container = document.querySelector('.container');
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
         if (container) {
             container.scrollTop = 0;
         }
         console.log('✅ 최종 맨 위로 스크롤 완료');
-    }, 200);
+    }, 50);
 
     console.log('결과 페이지 표시:', applicationData);
 }
@@ -2005,8 +2016,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (qrData && qrData.apartment_name) {
                                 currentApartmentName = qrData.apartment_name;
                                 console.log('✅ 고객 모드: currentApartmentName 설정 완료:', currentApartmentName);
-                                console.log('📧 이메일 수신자:', qrData.emails);
-                                console.log('📱 SMS 수신자:', qrData.phones);
+                                
+                                // QR별 이메일/전화번호 수신자 저장 (전역 변수)
+                                if (qrData.emails && Array.isArray(qrData.emails)) {
+                                    currentQRRecipientEmails = qrData.emails;
+                                    console.log('📧 QR별 이메일 수신자 저장:', currentQRRecipientEmails);
+                                }
+                                if (qrData.phones && Array.isArray(qrData.phones)) {
+                                    currentQRRecipientPhones = qrData.phones;
+                                    console.log('📱 QR별 전화번호 수신자 저장:', currentQRRecipientPhones);
+                                }
                             } else {
                                 console.warn('⚠️ QR 데이터에 apartment_name 없음');
                             }
