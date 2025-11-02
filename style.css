@@ -137,9 +137,85 @@ header p {
     resize: vertical;
 }
 
+/* ========================================
+   커스텀 체크박스 스타일 (개인정보 동의)
+   ======================================== */
+
+/* 기본 체크박스 숨기기 */
 .form-group input[type="checkbox"] {
-    width: auto;
-    margin-right: 10px;
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 0;
+    height: 0;
+}
+
+/* 체크박스 레이블 컨테이너 */
+.form-group label:has(input[type="checkbox"]) {
+    position: relative;
+    padding-left: 35px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+}
+
+/* 커스텀 체크박스 (체크 전) */
+.form-group label:has(input[type="checkbox"])::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: 2px solid #d1d5db;
+    border-radius: 4px;
+    background-color: white;
+    transition: all 0.3s ease;
+}
+
+/* 체크마크 (체크 전에는 숨김) */
+.form-group label:has(input[type="checkbox"])::after {
+    content: '✓';
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%) scale(0);
+    font-size: 16px;
+    font-weight: bold;
+    color: #000000;
+    transition: all 0.3s ease;
+    opacity: 0;
+}
+
+/* 체크박스 호버 효과 */
+.form-group label:has(input[type="checkbox"]):hover::before {
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+/* 체크 후 */
+.form-group input[type="checkbox"]:checked + label::before,
+.form-group label:has(input[type="checkbox"]:checked)::before {
+    background-color: white;
+    border-color: #4CAF50;
+    border-width: 2px;
+}
+
+/* 체크마크 표시 (체크 후) */
+.form-group input[type="checkbox"]:checked + label::after,
+.form-group label:has(input[type="checkbox"]:checked)::after {
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+}
+
+/* 포커스 상태 */
+.form-group input[type="checkbox"]:focus + label::before,
+.form-group label:has(input[type="checkbox"]:focus)::before {
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
 }
 
 /* 모달 스타일 */
