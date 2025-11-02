@@ -261,9 +261,9 @@ async function loadAdminSettingsFromCloud() {
             console.log('Supabase에 저장된 관리자 설정이 없습니다. 로컬 설정을 사용합니다.');
             loadAdminSettingsLocal();
         }
-        
+
         // 화면 업데이트
-        loadSavedTitles();
+        // loadSavedTitles(); // ⚠️ 주석 처리: 제목 편집 기능 비활성화
         displaySavedInputs();
     } catch (error) {
         console.error('관리자 설정 로드 중 오류:', error);
@@ -295,9 +295,9 @@ function loadAdminSettingsLocal() {
 
         adminSettings = settings;
         console.log('로컬에서 관리자 설정을 로드했습니다.');
-        
+
         // 화면 업데이트
-        loadSavedTitles();
+        // loadSavedTitles(); // ⚠️ 주석 처리: 제목 편집 기능 비활성화
         displaySavedInputs();
     } catch (error) {
         console.error('로컬 관리자 설정 로드 중 오류:', error);
@@ -1160,67 +1160,68 @@ async function processCustomerFormSubmission(event) {
     }
 }
 
-// 제목 편집 모드로 전환
-function editTitle() {
-    const titleElement = document.getElementById('mainTitle');
-    const currentTitle = titleElement.textContent;
-    
-    titleElement.innerHTML = `
-        <input type="text" id="titleInput" value="${currentTitle}" style="width: 100%; padding: 8px; border: 2px solid #4CAF50; border-radius: 4px; font-size: 18px; font-weight: bold;">
-    `;
-    
-    const titleInput = document.getElementById('titleInput');
-    titleInput.focus();
-    titleInput.select();
-    
-    // Enter 키로 저장, Esc 키로 취소
-    titleInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            saveTitle();
-        } else if (e.key === 'Escape') {
-            cancelTitleEdit();
-        }
-    });
-    
-    // 입력란에서 포커스가 벗어나면 자동 저장
-    titleInput.addEventListener('blur', function() {
-        saveTitle();
-    });
-}
+// ⚠️ 주석 처리: 제목 편집 기능 비활성화 (고객 모드에 제목이 전달되는 문제 방지)
+// // 제목 편집 모드로 전환
+// function editTitle() {
+//     const titleElement = document.getElementById('mainTitle');
+//     const currentTitle = titleElement.textContent;
+//
+//     titleElement.innerHTML = `
+//         <input type="text" id="titleInput" value="${currentTitle}" style="width: 100%; padding: 8px; border: 2px solid #4CAF50; border-radius: 4px; font-size: 18px; font-weight: bold;">
+//     `;
+//
+//     const titleInput = document.getElementById('titleInput');
+//     titleInput.focus();
+//     titleInput.select();
+//
+//     // Enter 키로 저장, Esc 키로 취소
+//     titleInput.addEventListener('keydown', function(e) {
+//         if (e.key === 'Enter') {
+//             saveTitle();
+//         } else if (e.key === 'Escape') {
+//             cancelTitleEdit();
+//         }
+//     });
+//
+//     // 입력란에서 포커스가 벗어나면 자동 저장
+//     titleInput.addEventListener('blur', function() {
+//         saveTitle();
+//     });
+// }
 
-// 제목 저장
-function saveTitle() {
-    const titleInput = document.getElementById('titleInput');
-    const newTitle = titleInput.value.trim();
-    
-    if (!newTitle) {
-        alert('제목을 입력해주세요.');
-        return;
-    }
-    
-    // localStorage에 저장
-    localStorage.setItem('mainTitle', newTitle);
-    
-    // 제목 업데이트 및 편집 모드 해제
-    const titleElement = document.getElementById('mainTitle');
-    titleElement.innerHTML = newTitle;
-    titleElement.onclick = editTitle;
-    
-    // Supabase에 저장
-    saveAdminSettingsToCloud();
-    
-    alert('제목이 저장되었습니다!');
-}
+// // 제목 저장
+// function saveTitle() {
+//     const titleInput = document.getElementById('titleInput');
+//     const newTitle = titleInput.value.trim();
+//
+//     if (!newTitle) {
+//         alert('제목을 입력해주세요.');
+//         return;
+//     }
+//
+//     // localStorage에 저장
+//     localStorage.setItem('mainTitle', newTitle);
+//
+//     // 제목 업데이트 및 편집 모드 해제
+//     const titleElement = document.getElementById('mainTitle');
+//     titleElement.innerHTML = newTitle;
+//     titleElement.onclick = editTitle;
+//
+//     // Supabase에 저장
+//     saveAdminSettingsToCloud();
+//
+//     alert('제목이 저장되었습니다!');
+// }
 
-// 제목 편집 취소
-function cancelTitleEdit() {
-    const titleElement = document.getElementById('mainTitle');
-    const savedTitle = localStorage.getItem('mainTitle') || 'Speed 아파트 통신 환경 개선 신청서';
-    
-    // 편집 모드 해제하고 원래 상태로 복원
-    titleElement.innerHTML = savedTitle;
-    titleElement.onclick = editTitle;
-}
+// // 제목 편집 취소
+// function cancelTitleEdit() {
+//     const titleElement = document.getElementById('mainTitle');
+//     const savedTitle = localStorage.getItem('mainTitle') || 'Speed 아파트 통신 환경 개선 신청서';
+//
+//     // 편집 모드 해제하고 원래 상태로 복원
+//     titleElement.innerHTML = savedTitle;
+//     titleElement.onclick = editTitle;
+// }
 
 // 부제목은 고정 텍스트로 변경됨 - 편집 기능 제거
 
@@ -1666,19 +1667,20 @@ function downloadQR(format) {
     link.click();
 }
 
-// 페이지 로드시 저장된 제목 불러오기 (부제목은 고정)
-function loadSavedTitles() {
-    const savedTitle = localStorage.getItem('mainTitle');
-    
-    if (savedTitle) {
-        const titleElement = document.getElementById('mainTitle');
-        titleElement.textContent = savedTitle;
-    }
-    
-    // 부제목은 항상 고정 텍스트로 설정
-    const subtitleElement = document.getElementById('mainSubtitle');
-    subtitleElement.textContent = '신청서를 작성하여 제출해 주세요';
-}
+// ⚠️ 주석 처리: 제목 로드 기능 비활성화 (고객 모드에 제목이 전달되는 문제 방지)
+// // 페이지 로드시 저장된 제목 불러오기 (부제목은 고정)
+// function loadSavedTitles() {
+//     const savedTitle = localStorage.getItem('mainTitle');
+//
+//     if (savedTitle) {
+//         const titleElement = document.getElementById('mainTitle');
+//         titleElement.textContent = savedTitle;
+//     }
+//
+//     // 부제목은 항상 고정 텍스트로 설정
+//     const subtitleElement = document.getElementById('mainSubtitle');
+//     subtitleElement.textContent = '신청서를 작성하여 제출해 주세요';
+// }
 
 // 저장된 메일/폰번호 표시
 function displaySavedInputs() {
@@ -2016,7 +2018,24 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (qrData && qrData.apartment_name) {
                                 currentApartmentName = qrData.apartment_name;
                                 console.log('✅ 고객 모드: currentApartmentName 설정 완료:', currentApartmentName);
-                                
+
+                                // QR 스캔 후 모바일 맨 위 제목 업데이트 (DOM 로드 대기)
+                                const updateTitle = () => {
+                                    const headerTitle = document.querySelector('header h1');
+                                    console.log('🔍 제목 요소 찾기:', headerTitle);
+                                    if (headerTitle) {
+                                        headerTitle.textContent = `📡 ${currentApartmentName} 통신 환경 개선 신청서`;
+                                        console.log('✅ QR 스캔 후 제목 업데이트:', headerTitle.textContent);
+                                    } else {
+                                        console.error('❌ header h1 요소를 찾을 수 없습니다!');
+                                    }
+                                };
+
+                                // 즉시 실행 + 지연 실행 (DOM 준비 보장)
+                                updateTitle();
+                                setTimeout(updateTitle, 100);
+                                setTimeout(updateTitle, 500);
+
                                 // QR별 이메일/전화번호 수신자 저장 (전역 변수)
                                 if (qrData.emails && Array.isArray(qrData.emails)) {
                                     currentQRRecipientEmails = qrData.emails;
@@ -2028,13 +2047,28 @@ document.addEventListener('DOMContentLoaded', function() {
                                 }
                             } else {
                                 console.warn('⚠️ QR 데이터에 apartment_name 없음');
+                                // QR 데이터에 아파트명이 없으면 기본값으로 제목 설정
+                                const headerTitle = document.querySelector('header h1');
+                                if (headerTitle) {
+                                    headerTitle.textContent = `📡 ${currentApartmentName} 통신 환경 개선 신청서`;
+                                }
                             }
                         } catch (error) {
                             console.error('❌ QR 데이터 로드 오류:', error);
+                            // 오류 발생 시에도 기본값으로 제목 설정
+                            const headerTitle = document.querySelector('header h1');
+                            if (headerTitle) {
+                                headerTitle.textContent = `📡 ${currentApartmentName} 통신 환경 개선 신청서`;
+                            }
                         }
                     })();
                 } else {
                     console.log('ℹ️ QR ID 없음 (일반 고객 모드)');
+                    // QR ID가 없으면 기본값으로 제목 설정
+                    const headerTitle = document.querySelector('header h1');
+                    if (headerTitle) {
+                        headerTitle.textContent = `📡 ${currentApartmentName} 통신 환경 개선 신청서`;
+                    }
                 }
             } catch (e) {
                 console.warn('URL 기반 관리자 데이터 동기화 실패:', e);
@@ -2143,14 +2177,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 추가로 페이지 로드 완료 후에도 한번 더 실행
         setTimeout(setupCustomerMode, 100);
-        
-        // 저장된 제목이 있으면 우선 사용, 부제목은 고정
-        const headerTitle = document.querySelector('header h1');
+
+        // 고객 모드: 부제목만 먼저 설정 (제목은 QR 데이터 로드 후 업데이트)
         const headerSubtext = document.querySelector('header p');
-        const savedTitle = localStorage.getItem('mainTitle');
-        if (headerTitle) headerTitle.textContent = savedTitle || '📡 Speed 아파트 통신 환경 개선 신청서';
         if (headerSubtext) headerSubtext.textContent = '신청서를 작성하여 제출해 주세요';
-        
+
         console.log('고객용 모드로 실행됨');
     } else {
         // 관리자용 모드일 때 고객용 제출 버튼 숨기기
@@ -2170,12 +2201,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('관리자용 모드로 실행됨');
     }
-    
-    // 저장된 제목/부제목 불러오기 (모든 모드에서 공통)
-    loadSavedTitles();
-    
-    // 저장된 메일/폰번호 표시 (관리자 모드에서만)
+
+    // 저장된 제목/부제목 불러오기 (관리자 모드에서만)
     if (!isCustomerMode) {
+        // loadSavedTitles(); // ⚠️ 주석 처리: 제목 편집 기능 비활성화
         displaySavedInputs();
     }
 
