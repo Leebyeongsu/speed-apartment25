@@ -164,7 +164,7 @@ async function saveAdminSettingsToCloud() {
         };
 
         // 현재 apartment_id로 기존 데이터 확인
-        const { data: existingData, error: checkError } = await supabase
+        const { data: existingData, error: checkError } = await supabaseClient
             .from('admin_settings')
             .select('*')
             .eq('apartment_id', APARTMENT_ID)
@@ -173,7 +173,7 @@ async function saveAdminSettingsToCloud() {
         if (checkError && checkError.code === 'PGRST116') {
             // 데이터가 없으면 새로 삽입
             console.log('🆕 speed_apartment21 데이터 새로 생성 중...');
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('admin_settings')
                 .insert(settings);
 
@@ -186,7 +186,7 @@ async function saveAdminSettingsToCloud() {
         } else if (!checkError) {
             // 데이터가 이미 있으면 업데이트
             console.log('🔄 기존 speed_apartment21 데이터 업데이트 중...');
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('admin_settings')
                 .update({
                     title: settings.title,
@@ -219,13 +219,15 @@ async function saveAdminSettingsToCloud() {
 // 관리자 설정 로드 (Supabase)
 async function loadAdminSettingsFromCloud() {
     try {
-        if (!supabase) {
+        // Supabase 클라이언트 확인
+        const client = window.supabaseClient || window.supabase;
+        if (!client || typeof client.from !== 'function') {
             console.warn('Supabase가 초기화되지 않았습니다. 로컬 설정을 사용합니다.');
             loadAdminSettingsLocal();
             return;
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await client
             .from('admin_settings')
             .select('*')
             .eq('apartment_id', APARTMENT_ID)  // speed_apartment21 조건으로 검색
@@ -416,9 +418,10 @@ async function handleLocalNotification(applicationData) {
 // 신청서를 Supabase에 저장하고 관리자에게 알림 발송
 async function saveApplicationToSupabase(applicationData) {
     try {
-        console.log('Supabase 연결 상태 확인:', supabase);
+        const supabaseClient = window.supabaseClient || window.supabase;
+        console.log('Supabase 연결 상태 확인:', supabaseClient);
         
-        if (!supabase) {
+        if (!supabaseClient || typeof supabaseClient.from !== 'function') {
             console.warn('Supabase가 초기화되지 않았습니다. 로컬 저장으로 대체합니다.');
             return await saveApplicationLocally(applicationData);
         }
@@ -489,7 +492,7 @@ async function saveApplicationToSupabase(applicationData) {
         });
 
         // applications 테이블에 신청서 저장
-        const { data: insertedApplication, error: insertError } = await supabase
+        const { data: insertedApplication, error: insertError } = await supabaseClient
             .from('applications')
             .insert([applicationRecord])
             .select()
@@ -535,14 +538,19 @@ async function logEmailAttempt(applicationId, provider, status, error = null) {
         });
         
         // Supabase 로그 저장 (선택사항)
-        if (supabase) {
-            await supabase.from('notification_logs').insert([{
-                application_id: applicationId,
-                provider: provider,
-                status: status,
-                error: error,
-                timestamp: new Date().toISOString()
-            }]);
+        const supabaseClient = window.supabaseClient || window.supabase;
+        if (supabaseClient && typeof supabaseClient.from === 'function') {
+            try {
+                await supabaseClient.from('notification_logs').insert([{
+                    application_id: applicationId,
+                    provider: provider,
+                    status: status,
+                    error: error,
+                    timestamp: new Date().toISOString()
+                }]);
+            } catch (e) {
+                console.warn('로그 저장 실패 (무시):', e);
+            }
         }
     } catch (err) {
         console.warn('로그 저장 실패:', err);
@@ -862,21 +870,26 @@ async function sendNotificationsViaEdgeFunction(applicationData) {
         } else {
             // 폴백: admin_settings에서 이메일 조회
             console.log('👑 QR별 이메일 없음, admin_settings 조회...');
-            const { data: adminCheck, error: adminError } = await supabase
-                .from('admin_settings')
-                .select('emails')
-                .eq('apartment_id', APARTMENT_ID)
-                .single();
+            const supabaseClient = window.supabaseClient || window.supabase;
+            if (supabaseClient && typeof supabaseClient.from === 'function') {
+                const { data: adminCheck, error: adminError } = await supabaseClient
+                    .from('admin_settings')
+                    .select('emails')
+                    .eq('apartment_id', APARTMENT_ID)
+                    .single();
 
-            if (adminError || !adminCheck?.emails || adminCheck.emails.length === 0) {
-                console.error('❌ 관리자 이메일 설정 문제:', adminError?.message);
-                throw new Error('관리자 이메일 설정을 찾을 수 없습니다.');
+                if (adminError || !adminCheck?.emails || adminCheck.emails.length === 0) {
+                    console.error('❌ 관리자 이메일 설정 문제:', adminError?.message);
+                    throw new Error('관리자 이메일 설정을 찾을 수 없습니다.');
+                }
+
+                adminEmails = Array.isArray(adminCheck.emails)
+                    ? Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3)
+                    : [];
+                console.log('📧 admin_settings 이메일 수신자 사용:', adminEmails);
+            } else {
+                throw new Error('Supabase 클라이언트를 찾을 수 없습니다.');
             }
-
-            adminEmails = Array.isArray(adminCheck.emails)
-                ? Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3)
-                : [];
-            console.log('📧 admin_settings 이메일 수신자 사용:', adminEmails);
         }
 
         console.log('DEBUG sendNotificationsViaEdgeFunction - 최종 adminEmails:', adminEmails);
@@ -1001,7 +1014,8 @@ async function sendNotificationsToAdmins(applicationData) {
         const emailResult = await sendEmailToAdmins(applicationData);
         
         // Supabase 알림 로그 저장 (있는 경우)
-        if (supabase && applicationData.id) {
+        const supabaseClient = window.supabaseClient || window.supabase;
+        if (supabaseClient && typeof supabaseClient.from === 'function' && applicationData.id) {
             const submittedDate = new Date(applicationData.submitted_at);
             const formattedDate = submittedDate.toLocaleDateString('ko-KR', {
                 year: 'numeric',
@@ -1040,7 +1054,7 @@ async function sendNotificationsToAdmins(applicationData) {
             });
 
             if (notifications.length > 0) {
-                const { error: notificationError } = await supabase
+                const { error: notificationError } = await supabaseClient
                     .from('notification_logs')
                     .insert(notifications);
 
@@ -2258,9 +2272,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 모든 함수를 전역 스코프에 노출 (onclick 속성에서 사용하기 위해)
-window.editTitle = editTitle;
-window.saveTitle = saveTitle;
-window.cancelTitleEdit = cancelTitleEdit;
+// ⚠️ editTitle, saveTitle, cancelTitleEdit는 주석 처리됨 (제목 편집 기능 비활성화)
+// window.editTitle = editTitle;
+// window.saveTitle = saveTitle;
+// window.cancelTitleEdit = cancelTitleEdit;
 window.showEmailInputModal = showEmailInputModal;
 window.addEmailInput = addEmailInput;
 window.removeEmailInput = removeEmailInput;
@@ -2972,12 +2987,18 @@ async function loadQRList() {
     try {
         console.log('🔍 QR 목록 불러오기 시작');
 
-        if (!window.supabase) {
+        // Supabase 클라이언트 확인 (클라이언트 객체인지 검증)
+        let client = window.supabaseClient || window.supabase;
+        if (!client || typeof client.from !== 'function') {
             throw new Error('Supabase 클라이언트를 찾을 수 없습니다.');
+        }
+        // window.supabase를 클라이언트 객체로 설정 (호환성)
+        if (client && typeof client.from === 'function') {
+            window.supabase = client;
         }
 
         // Supabase에서 QR 목록 조회
-        const { data, error } = await window.supabase
+        const { data, error } = await client
             .from('qr_codes')
             .select('*')
             .eq('apartment_id', APARTMENT_ID)

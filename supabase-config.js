@@ -1,5 +1,6 @@
 // Supabase 클라이언트 설정
-let supabase = null;
+// 주의: CDN이 먼저 로드되어 window.supabase가 생성될 수 있으므로 다른 이름 사용
+let supabaseClientLocal = null;
 
 // Supabase 클라이언트 초기화 함수
 function initializeSupabase() {
@@ -42,18 +43,21 @@ function initializeSupabase() {
             console.log('🔑 API Key 길이:', supabaseAnonKey.length);
             
             // Supabase 클라이언트 생성
-            supabase = createClientFn(supabaseUrl, supabaseAnonKey);
+            supabaseClientLocal = createClientFn(supabaseUrl, supabaseAnonKey);
 
             // 전역으로 노출(즉시 사용 가능한 상태로 만듦)
-            window.supabaseClient = supabase;  // 기존 코드 호환성
-            window.supabase = supabase;        // 새 QR 관리 함수용
+            // 중요: window.supabaseClient를 우선 사용하고, window.supabase는 클라이언트 객체로 설정
+            window.supabaseClient = supabaseClientLocal;  // 클라이언트 객체 (우선 사용!)
+            window.supabase = supabaseClientLocal;        // 클라이언트 객체로 설정 (호환성)
 
-            console.log('✅ Supabase 클라이언트 초기화 성공:', supabase);
+            console.log('✅ Supabase 클라이언트 초기화 성공');
+            console.log('🔍 window.supabaseClient.from:', typeof window.supabaseClient.from);
+            console.log('🔍 window.supabase.from:', typeof window.supabase.from);
 
             // 연결 테스트
             testSupabaseConnection();
 
-            return supabase;
+            return supabaseClientLocal;
         } else {
             console.error('❌ Supabase createClient 함수를 찾을 수 없습니다.');
             return null;
@@ -69,14 +73,15 @@ async function testSupabaseConnection() {
     try {
         console.log('🧪 Supabase 연결 테스트 시작...');
         
-        if (!supabase) {
-            console.error('❌ supabase 클라이언트가 없습니다.');
+        const client = supabaseClientLocal || window.supabaseClient || window.supabase;
+        if (!client || typeof client.from !== 'function') {
+            console.error('❌ supabase 클라이언트가 없거나 유효하지 않습니다.');
             return;
         }
         
         // 간단한 테이블 조회로 연결 테스트
         // 주의: 특정 컬럼명이 없을 수 있으므로 전체 행을 조회하여 존재 여부를 확인한다.
-        const { data, error } = await supabase
+        const { data, error } = await client
             .from('admin_settings')
             .select('*')
             .limit(1);
