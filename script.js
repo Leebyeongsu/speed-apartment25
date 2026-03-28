@@ -1619,7 +1619,7 @@ function deleteQR() {
 }
 
 // QR 코드 다운로드
-function downloadQR(format) {
+async function downloadQR(format) {
     const qrCodeDiv = document.getElementById('qrcode');
     const originalCanvas = qrCodeDiv.querySelector('canvas');
 
@@ -1629,7 +1629,7 @@ function downloadQR(format) {
     }
 
     // 새 캔버스 생성 (테두리 공간 추가)
-    const borderWidth = 10; // 테두리 두께 (20 → 10으로 축소)
+    const borderWidth = 5; // 테두리 두께 (10 → 5으로 축소)
     const newCanvas = document.createElement('canvas');
     const ctx = newCanvas.getContext('2d');
 
@@ -1654,6 +1654,9 @@ function downloadQR(format) {
 
     // 원본 QR 코드를 중앙에 그리기
     ctx.drawImage(originalCanvas, borderWidth, borderWidth);
+
+    // 로고를 QR 중앙에 삽입
+    await drawLogoOnQRCanvas(ctx, newCanvas.width, newCanvas.height);
 
     // 다운로드
     const link = document.createElement('a');
@@ -3098,11 +3101,50 @@ function renderQRCard(container, qrList, prefix) {
                     colorLight: "#FFFFFF",
                     correctLevel: QRCode.CorrectLevel.H
                 });
+                // 로고 삽입
+                const previewCanvas = previewDiv.querySelector('canvas');
+                if (previewCanvas) {
+                    drawLogoOnQRCanvas(previewCanvas.getContext('2d'), previewCanvas.width, previewCanvas.height);
+                }
             } catch (error) {
                 console.error(`QR 미리보기 생성 실패 (${prefix}-${qr.id}):`, error);
                 previewDiv.innerHTML = '<p style="color: #999;">미리보기 생성 실패</p>';
             }
         }
+    });
+}
+
+// QR 캔버스 중앙에 로고 그리기 (공통 헬퍼)
+function drawLogoOnQRCanvas(ctx, canvasWidth, canvasHeight) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            // 로고 크기: QR 전체의 약 20% (오류수정 H 레벨 허용 범위 내)
+            const logoSize = Math.floor(Math.min(canvasWidth, canvasHeight) * 0.20);
+            const logoX = Math.floor((canvasWidth - logoSize) / 2);
+            const logoY = Math.floor((canvasHeight - logoSize) / 2);
+
+            // 흰색 원형 배경 (로고와 QR 패턴 구분)
+            const padding = 3;
+            ctx.beginPath();
+            ctx.arc(
+                logoX + logoSize / 2,
+                logoY + logoSize / 2,
+                logoSize / 2 + padding,
+                0, Math.PI * 2
+            );
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fill();
+
+            // 로고 그리기
+            ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
+            resolve();
+        };
+        img.onerror = () => {
+            console.warn('로고 이미지 로드 실패 - 로고 없이 다운로드');
+            resolve();
+        };
+        img.src = 'apt_wifi_logo_purple.svg';
     });
 }
 
@@ -3121,7 +3163,7 @@ async function downloadQRCode(qrId, qrName, format) {
         }
 
         // 테두리 추가된 새 캔버스 생성
-        const borderWidth = 10;
+        const borderWidth = 5;
         const newCanvas = document.createElement('canvas');
         const ctx = newCanvas.getContext('2d');
 
@@ -3143,6 +3185,9 @@ async function downloadQRCode(qrId, qrName, format) {
 
         // 원본 QR 코드 그리기
         ctx.drawImage(originalCanvas, borderWidth, borderWidth);
+
+        // 로고를 QR 중앙에 삽입
+        await drawLogoOnQRCanvas(ctx, newCanvas.width, newCanvas.height);
 
         // 다운로드
         const link = document.createElement('a');
@@ -3377,6 +3422,11 @@ async function loadQRForEdit(qrId) {
                         colorLight: "#FFFFFF",
                         correctLevel: QRCode.CorrectLevel.H
                     });
+                    // 로고 삽입
+                    const step3Canvas = previewDiv.querySelector('canvas');
+                    if (step3Canvas) {
+                        drawLogoOnQRCanvas(step3Canvas.getContext('2d'), step3Canvas.width, step3Canvas.height);
+                    }
                     console.log('✅ STEP 3에 QR 코드 복사 완료');
                 } catch (error) {
                     console.error('❌ QR 미리보기 생성 실패:', error);

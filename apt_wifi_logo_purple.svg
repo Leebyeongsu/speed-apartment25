@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 120 120">
+  <circle cx="60" cy="60" r="58" fill="#534AB7"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#7F77DD" stroke-width="1.5"/>
+  <!-- 아파트 타워 -->
+  <rect x="33" y="55" width="54" height="56" rx="4" fill="white"/>
+  <!-- 창문 3열 x 3행 -->
+  <rect x="39" y="61" width="11" height="9" rx="2" fill="#AFA9EC"/>
+  <rect x="54" y="61" width="11" height="9" rx="2" fill="#CECBF6"/>
+  <rect x="69" y="61" width="11" height="9" rx="2" fill="#AFA9EC"/>
+  <rect x="39" y="74" width="11" height="9" rx="2" fill="#CECBF6"/>
+  <rect x="54" y="74" width="11" height="9" rx="2" fill="#AFA9EC"/>
+  <rect x="69" y="74" width="11" height="9" rx="2" fill="#CECBF6"/>
+  <rect x="39" y="87" width="11" height="9" rx="2" fill="#AFA9EC"/>
+  <rect x="54" y="87" width="11" height="9" rx="2" fill="#CECBF6"/>
+  <rect x="69" y="87" width="11" height="9" rx="2" fill="#AFA9EC"/>
+  <!-- 출입구 -->
+  <rect x="52" y="100" width="16" height="11" rx="0" fill="#534AB7"/>
+  <path d="M52 106 Q60 98 68 106" fill="#534AB7" stroke="none"/>
+  <!-- 지면선 -->
+  <rect x="22" y="111" width="76" height="3" rx="1.5" fill="#AFA9EC" opacity="0.5"/>
+  <!-- 와이파이 아이콘 -->
+  <circle cx="60" cy="46" r="3.5" fill="white"/>
+  <path d="M52 40 Q60 32 68 40" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <path d="M45 34 Q60 20 75 34" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <path d="M38 28 Q60 8 82 28" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"/>
+</svg>
