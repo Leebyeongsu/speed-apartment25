@@ -597,12 +597,12 @@ async function sendEmailToAdmins(applicationData) {
     
     if (currentQRRecipientEmails && currentQRRecipientEmails.length > 0) {
         // QR별 이메일 사용 (고객 모드에서 설정됨)
-        savedEmails = Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3);
+        savedEmails = Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5);
         console.log('✅ sendEmailToAdmins - QR별 이메일 수신자 사용:', savedEmails);
     } else {
         // 폴백: localStorage에서 이메일 가져오기
         const savedEmailsRaw = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
-        savedEmails = Array.from(new Set((savedEmailsRaw || []).map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3);
+        savedEmails = Array.from(new Set((savedEmailsRaw || []).map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5);
         console.log('📧 sendEmailToAdmins - localStorage 이메일 수신자 사용:', savedEmails);
     }
 
@@ -864,7 +864,7 @@ async function sendNotificationsViaEdgeFunction(applicationData) {
         if (currentQRRecipientEmails && currentQRRecipientEmails.length > 0) {
             // QR별 이메일 사용 (고객 모드에서 설정됨)
             adminEmails = Array.isArray(currentQRRecipientEmails)
-                ? Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3)
+                ? Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5)
                 : [];
             console.log('✅ QR별 이메일 수신자 사용:', adminEmails);
         } else {
@@ -884,7 +884,7 @@ async function sendNotificationsViaEdgeFunction(applicationData) {
                 }
 
                 adminEmails = Array.isArray(adminCheck.emails)
-                    ? Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 3)
+                    ? Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5)
                     : [];
                 console.log('📧 admin_settings 이메일 수신자 사용:', adminEmails);
             } else {
@@ -1271,8 +1271,8 @@ function addEmailInput() {
     const emailInputs = document.getElementById('emailInputs');
     const emailRows = emailInputs.querySelectorAll('.email-input-row');
     
-    if (emailRows.length >= 3) {
-        alert('메일 주소는 최대 3개까지 입력할 수 있습니다.');
+    if (emailRows.length >= 5) {
+        alert('메일 주소는 최대 5개까지 입력할 수 있습니다.');
         return;
     }
     
@@ -1376,8 +1376,8 @@ function addPhoneInput() {
     const phoneInputs = document.getElementById('phoneInputs');
     const phoneRows = phoneInputs.querySelectorAll('.phone-input-row');
     
-    if (phoneRows.length >= 3) {
-        alert('폰번호는 최대 3개까지 입력할 수 있습니다.');
+    if (phoneRows.length >= 5) {
+        alert('폰번호는 최대 5개까지 입력할 수 있습니다.');
         return;
     }
     
