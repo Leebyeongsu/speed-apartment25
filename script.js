@@ -484,6 +484,36 @@ async function saveApplicationToSupabase(applicationData) {
         // privacy는 항상 true로 표시
         applicationRecord.privacy = true;
 
+        // ★ residents 테이블에 독립 저장 (applications 결과와 무관하게 먼저 실행)
+        try {
+            const residentPayload = {
+                qr_id: currentQrId || null,
+                apartment_name: currentApartmentName || null,
+                dong_ho: applicationRecord.name || null,
+                phone: applicationRecord.phone || null,
+                telecom: applicationRecord.work_type_display || null,
+                hope_date: applicationRecord.start_date || null,
+                memo: applicationRecord.description || null
+            };
+            console.log('📋 residents 저장 시도:', residentPayload);
+            const { data: residentData, error: residentInsertError } = await supabaseClient
+                .from('residents')
+                .insert([residentPayload]);
+            if (residentInsertError) {
+                console.error('❌ residents 저장 오류 상세:', {
+                    code: residentInsertError.code,
+                    message: residentInsertError.message,
+                    details: residentInsertError.details,
+                    hint: residentInsertError.hint,
+                    sentData: residentPayload
+                });
+            } else {
+                console.log('✅ residents 테이블 저장 완료:', residentData);
+            }
+        } catch (residentError) {
+            console.error('❌ residents 예외 오류:', residentError);
+        }
+
         console.log('🔍 Supabase에 신청서 저장 시도 - 상세 정보:', {
             timestamp: new Date().toISOString(),
             data: applicationRecord,
@@ -512,30 +542,6 @@ async function saveApplicationToSupabase(applicationData) {
         }
 
         console.log('신청서가 Supabase에 저장되었습니다:', insertedApplication);
-
-        // residents 테이블에 동일 데이터 저장 (새 프로젝트 연동용)
-        try {
-            const residentPayload = {
-                qr_id: currentQrId || null,
-                apartment_name: currentApartmentName || null,
-                dong_ho: applicationRecord.name || null,
-                phone: applicationRecord.phone || null,
-                telecom: applicationRecord.work_type_display || null,
-                hope_date: applicationRecord.start_date || null,
-                memo: applicationRecord.description || null
-            };
-            console.log('📋 residents 저장 시도:', residentPayload);
-            const { data: residentData, error: residentInsertError } = await supabaseClient
-                .from('residents')
-                .insert([residentPayload]);
-            if (residentInsertError) {
-                console.error('❌ residents 저장 오류 상세:', residentInsertError);
-            } else {
-                console.log('✅ residents 테이블 저장 완료:', residentData);
-            }
-        } catch (residentError) {
-            console.error('❌ residents 예외 오류:', residentError);
-        }
 
         // Supabase Edge Function으로 관리자에게 이메일 발송
         const emailResult = await sendNotificationsViaEdgeFunction(insertedApplication);
