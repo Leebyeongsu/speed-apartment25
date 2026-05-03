@@ -486,12 +486,19 @@ async function saveApplicationToSupabase(applicationData) {
 
         // ★ residents 테이블에 독립 저장 (applications 결과와 무관하게 먼저 실행)
         try {
+            // 통신사 표시명 변환 (workType 코드 → 통신사명)
+            const telecomValue = applicationRecord.work_type_display
+                || providerNames[applicationData.workType]
+                || providerNames[applicationRecord.work_type]
+                || applicationData.workType
+                || null;
+
             const residentPayload = {
                 qr_id: currentQrId || null,
                 apartment_name: currentApartmentName || null,
                 dong_ho: applicationRecord.name || null,
                 phone: applicationRecord.phone || null,
-                telecom: applicationRecord.work_type_display || null,
+                telecom: telecomValue,
                 hope_date: applicationRecord.start_date || null,
                 memo: applicationRecord.description || null
             };
