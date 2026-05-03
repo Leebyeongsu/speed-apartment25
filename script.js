@@ -515,20 +515,26 @@ async function saveApplicationToSupabase(applicationData) {
 
         // residents 테이블에 동일 데이터 저장 (새 프로젝트 연동용)
         try {
-            await supabaseClient
+            const residentPayload = {
+                qr_id: currentQrId || null,
+                apartment_name: currentApartmentName || null,
+                dong_ho: applicationRecord.name || null,
+                phone: applicationRecord.phone || null,
+                telecom: applicationRecord.work_type_display || null,
+                hope_date: applicationRecord.start_date || null,
+                memo: applicationRecord.description || null
+            };
+            console.log('📋 residents 저장 시도:', residentPayload);
+            const { data: residentData, error: residentInsertError } = await supabaseClient
                 .from('residents')
-                .insert([{
-                    qr_id: currentQrId || null,
-                    apartment_name: currentApartmentName || null,
-                    dong_ho: applicationRecord.name || null,
-                    phone: applicationRecord.phone || null,
-                    telecom: applicationRecord.work_type_display || null,
-                    hope_date: applicationRecord.start_date || null,
-                    memo: applicationRecord.description || null
-                }]);
-            console.log('✅ residents 테이블 저장 완료');
+                .insert([residentPayload]);
+            if (residentInsertError) {
+                console.error('❌ residents 저장 오류 상세:', residentInsertError);
+            } else {
+                console.log('✅ residents 테이블 저장 완료:', residentData);
+            }
         } catch (residentError) {
-            console.warn('⚠️ residents 테이블 저장 실패 (applications는 정상 저장됨):', residentError);
+            console.error('❌ residents 예외 오류:', residentError);
         }
 
         // Supabase Edge Function으로 관리자에게 이메일 발송
