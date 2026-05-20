@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Apartment</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%);
+            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, sans-serif;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 48px 56px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+            text-align: center;
+        }
+        .icon { font-size: 52px; margin-bottom: 20px; }
+        .name {
+            font-size: 32px;
+            font-weight: 800;
+            color: #17171c;
+            letter-spacing: -0.5px;
+            word-break: keep-all;
+        }
+        .sub {
+            margin-top: 10px;
+            font-size: 15px;
+            color: #999;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">⚡</div>
+        <div class="name" id="nameDisplay">Speed Apartment</div>
+        <div class="sub">대리점</div>
+    </div>
+    <script>
+        var name = new URLSearchParams(window.location.search).get('name');
+        if (name) document.getElementById('nameDisplay').textContent = name;
+    </script>
+</body>
+</html>

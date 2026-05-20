@@ -1,8 +1,8 @@
 // Supabase 설정은 supabase-config.js에서 전역 변수로 제공됨
 
-// 아파트 ID 설정 (고유 식별자) - 배포할 리포지토리/프로젝트에 맞게 변경
-// 변경: speed_apartment21 (원격 리포지토리 및 Supabase 설정과 일치)
-const APARTMENT_ID = 'speed_apartment21';
+// 아파트 ID 설정 — URL ?apt= 파라미터에서 읽고, 없으면 기본값 사용
+const APARTMENT_ID = new URLSearchParams(window.location.search).get('apt') || 'speed_apartment21';
+function lsKey(key) { return `${APARTMENT_ID}_${key}`; }
 
 // 현재 QR ID 저장 (고객 모드에서 URL 파라미터로부터 추출)
 let currentQrId = null;
@@ -154,12 +154,12 @@ async function saveAdminSettingsToCloud() {
         const settings = {
             id: APARTMENT_ID,  // id도 speed_apartment21로 설정
             apartment_id: APARTMENT_ID,  // speed_apartment21 사용
-            title: localStorage.getItem('mainTitle') || '',
-            phones: JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]'),
-            emails: JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]'),
-            apartment_name: localStorage.getItem('apartmentName') || '',
-            entry_issue: localStorage.getItem('entryIssue') || '',
-            agency_name: localStorage.getItem('agencyName') || '',
+            title: localStorage.getItem(lsKey('mainTitle')) || '',
+            phones: JSON.parse(localStorage.getItem(lsKey('savedPhoneNumbers')) || '[]'),
+            emails: JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]'),
+            apartment_name: localStorage.getItem(lsKey('apartmentName')) || '',
+            entry_issue: localStorage.getItem(lsKey('entryIssue')) || '',
+            agency_name: localStorage.getItem(lsKey('agencyName')) || '',
             updated_at: new Date().toISOString()
         };
 
@@ -241,14 +241,17 @@ async function loadAdminSettingsFromCloud() {
         
         if (data) {
             // Supabase에서 가져온 데이터를 localStorage에 동기화
-            if (data.title) localStorage.setItem('mainTitle', data.title);
-            if (data.phones) localStorage.setItem('savedPhoneNumbers', JSON.stringify(data.phones));
-            if (data.emails) localStorage.setItem('savedEmailAddresses', JSON.stringify(data.emails));
+            if (data.title) localStorage.setItem(lsKey('mainTitle'), data.title);
+            if (data.phones) localStorage.setItem(lsKey('savedPhoneNumbers'), JSON.stringify(data.phones));
+            if (data.emails) localStorage.setItem(lsKey('savedEmailAddresses'), JSON.stringify(data.emails));
+            if (data.apartment_name) localStorage.setItem(lsKey('apartmentName'), data.apartment_name);
+            if (data.entry_issue) localStorage.setItem(lsKey('entryIssue'), data.entry_issue);
+            if (data.agency_name) localStorage.setItem(lsKey('agencyName'), data.agency_name);
 
             // 아파트명 캐시 업데이트 (고객 모드에서는 QR별 아파트명을 유지)
             const urlParams = new URLSearchParams(window.location.search);
             const isCustomerMode = urlParams.has('customer') || urlParams.has('apply') || urlParams.get('mode') === 'customer';
-            
+
             if (!isCustomerMode) {
                 // 관리자 모드에서만 admin_settings의 아파트명 사용
                 currentApartmentName = data.apartment_name || 'Speed 아파트';
@@ -265,8 +268,8 @@ async function loadAdminSettingsFromCloud() {
         }
 
         // 화면 업데이트
-        // loadSavedTitles(); // ⚠️ 주석 처리: 제목 편집 기능 비활성화
         displaySavedInputs();
+        initializeAdminInfoDisplay();
     } catch (error) {
         console.error('관리자 설정 로드 중 오류:', error);
         loadAdminSettingsLocal(); // 실패시 로컬 로드
@@ -278,10 +281,12 @@ function loadAdminSettingsLocal() {
     try {
         const settings = {
             apartment_id: APARTMENT_ID,
-            title: localStorage.getItem('mainTitle') || '',
-            phones: JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]'),
-            emails: JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]'),
-            apartment_name: 'Speed 아파트' // 로컬 백업 시 기본값
+            title: localStorage.getItem(lsKey('mainTitle')) || '',
+            phones: JSON.parse(localStorage.getItem(lsKey('savedPhoneNumbers')) || '[]'),
+            emails: JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]'),
+            apartment_name: localStorage.getItem(lsKey('apartmentName')) || 'Speed 아파트',
+            entry_issue: localStorage.getItem(lsKey('entryIssue')) || '',
+            agency_name: localStorage.getItem(lsKey('agencyName')) || ''
         };
 
         // 아파트명 캐시 업데이트 (고객 모드에서는 QR별 아파트명을 유지)
@@ -299,8 +304,8 @@ function loadAdminSettingsLocal() {
         console.log('로컬에서 관리자 설정을 로드했습니다.');
 
         // 화면 업데이트
-        // loadSavedTitles(); // ⚠️ 주석 처리: 제목 편집 기능 비활성화
         displaySavedInputs();
+        initializeAdminInfoDisplay();
     } catch (error) {
         console.error('로컬 관리자 설정 로드 중 오류:', error);
     }
@@ -337,9 +342,9 @@ async function saveApplicationLocally(applicationData) {
         };
 
         // localStorage에 저장
-        const existingApplications = JSON.parse(localStorage.getItem('localApplications') || '[]');
+        const existingApplications = JSON.parse(localStorage.getItem(lsKey('localApplications')) || '[]');
         existingApplications.push(localApplication);
-        localStorage.setItem('localApplications', JSON.stringify(existingApplications));
+        localStorage.setItem(lsKey('localApplications'), JSON.stringify(existingApplications));
 
         console.log('신청서를 로컬에 백업했습니다:', localApplication);
 
@@ -363,8 +368,8 @@ async function saveApplicationLocally(applicationData) {
 // 로컬 알림 처리 (이메일 주소를 콘솔에 출력)
 async function handleLocalNotification(applicationData) {
     try {
-        const savedEmails = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
-        const savedPhones = JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]');
+        const savedEmails = JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]');
+        const savedPhones = JSON.parse(localStorage.getItem(lsKey('savedPhoneNumbers')) || '[]');
 
         const submittedDate = new Date(applicationData.submitted_at);
         const formattedDate = submittedDate.toLocaleDateString('ko-KR', {
@@ -638,7 +643,7 @@ async function sendEmailToAdmins(applicationData) {
         console.log('✅ sendEmailToAdmins - QR별 이메일 수신자 사용:', savedEmails);
     } else {
         // 폴백: localStorage에서 이메일 가져오기
-        const savedEmailsRaw = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
+        const savedEmailsRaw = JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]');
         savedEmails = Array.from(new Set((savedEmailsRaw || []).map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5);
         console.log('📧 sendEmailToAdmins - localStorage 이메일 수신자 사용:', savedEmails);
     }
@@ -1044,8 +1049,8 @@ async function sendNotificationsViaEdgeFunction(applicationData) {
 async function sendNotificationsToAdmins(applicationData) {
     try {
         // 저장된 관리자 연락처 가져오기
-        const savedEmails = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
-        const savedPhones = JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]');
+        const savedEmails = JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]');
+        const savedPhones = JSON.parse(localStorage.getItem(lsKey('savedPhoneNumbers')) || '[]');
         
         // 실제 이메일 발송
         const emailResult = await sendEmailToAdmins(applicationData);
@@ -1251,7 +1256,7 @@ async function processCustomerFormSubmission(event) {
 //     }
 //
 //     // localStorage에 저장
-//     localStorage.setItem('mainTitle', newTitle);
+//     localStorage.setItem(lsKey('mainTitle'), newTitle);
 //
 //     // 제목 업데이트 및 편집 모드 해제
 //     const titleElement = document.getElementById('mainTitle');
@@ -1267,7 +1272,7 @@ async function processCustomerFormSubmission(event) {
 // // 제목 편집 취소
 // function cancelTitleEdit() {
 //     const titleElement = document.getElementById('mainTitle');
-//     const savedTitle = localStorage.getItem('mainTitle') || 'Speed 아파트 통신 환경 개선 신청서';
+//     const savedTitle = localStorage.getItem(lsKey('mainTitle')) || 'Speed 아파트 통신 환경 개선 신청서';
 //
 //     // 편집 모드 해제하고 원래 상태로 복원
 //     titleElement.innerHTML = savedTitle;
@@ -1291,7 +1296,7 @@ function showEmailInputModal() {
     `;
     
     // 저장된 메일 주소 불러오기
-    const savedEmails = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
+    const savedEmails = JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]');
     savedEmails.forEach((email, index) => {
         if (index > 0) {
             addEmailInput();
@@ -1361,7 +1366,7 @@ function saveEmailAddresses() {
     }
     
     // localStorage에 저장
-    localStorage.setItem('savedEmailAddresses', JSON.stringify(emails));
+    localStorage.setItem(lsKey('savedEmailAddresses'), JSON.stringify(emails));
     
     // 화면 업데이트
     displaySavedInputs();
@@ -1396,7 +1401,7 @@ function showPhoneInputModal() {
     `;
     
     // 저장된 폰번호 불러오기
-    const savedPhones = JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]');
+    const savedPhones = JSON.parse(localStorage.getItem(lsKey('savedPhoneNumbers')) || '[]');
     savedPhones.forEach((phone, index) => {
         if (index > 0) {
             addPhoneInput();
@@ -1466,7 +1471,7 @@ function savePhoneNumbers() {
     }
     
     // localStorage에 저장
-    localStorage.setItem('savedPhoneNumbers', JSON.stringify(phones));
+    localStorage.setItem(lsKey('savedPhoneNumbers'), JSON.stringify(phones));
     
     // 화면 업데이트
     displaySavedInputs();
@@ -1527,8 +1532,8 @@ function generatePageQR() {
     // 현재 debug 모드인지 확인
     const isDebugMode = new URLSearchParams(window.location.search).get('debug') === 'true';
     const customerUrl = isDebugMode ?
-        `${currentUrl}?debug=true&mode=customer` :
-        `${currentUrl}?mode=customer`;
+        `${currentUrl}?debug=true&mode=customer&apt=${APARTMENT_ID}` :
+        `${currentUrl}?mode=customer&apt=${APARTMENT_ID}`;
 
     console.log('QR 코드용 단순화된 URL:', customerUrl);
     console.log('URL 길이:', customerUrl.length, '자');
@@ -1609,9 +1614,9 @@ function generateQRWithShortUrl(shortUrl, qrCodeDiv, qrSection, qrDeleteBtn) {
         
         // 최후의 수단: 더 간단한 URL
         const isDebugMode = new URLSearchParams(window.location.search).get('debug') === 'true';
-        const simpleUrl = isDebugMode ? 
-            `${window.location.protocol}//${window.location.hostname}?debug=true&mode=customer` :
-            `${window.location.protocol}//${window.location.hostname}?mode=customer`;
+        const simpleUrl = isDebugMode ?
+            `${window.location.protocol}//${window.location.hostname}?debug=true&mode=customer&apt=${APARTMENT_ID}` :
+            `${window.location.protocol}//${window.location.hostname}?mode=customer&apt=${APARTMENT_ID}`;
         console.log('최종 단순 URL 시도:', simpleUrl);
         
         try {
@@ -1724,7 +1729,7 @@ async function downloadQR(format) {
 // ⚠️ 주석 처리: 제목 로드 기능 비활성화 (고객 모드에 제목이 전달되는 문제 방지)
 // // 페이지 로드시 저장된 제목 불러오기 (부제목은 고정)
 // function loadSavedTitles() {
-//     const savedTitle = localStorage.getItem('mainTitle');
+//     const savedTitle = localStorage.getItem(lsKey('mainTitle'));
 //
 //     if (savedTitle) {
 //         const titleElement = document.getElementById('mainTitle');
@@ -1738,8 +1743,8 @@ async function downloadQR(format) {
 
 // 저장된 메일/폰번호 표시
 function displaySavedInputs() {
-    const savedEmails = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
-    const savedPhones = JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]');
+    const savedEmails = JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]');
+    const savedPhones = JSON.parse(localStorage.getItem(lsKey('savedPhoneNumbers')) || '[]');
     
     const emailDisplay = document.getElementById('emailDisplay');
     const phoneDisplay = document.getElementById('phoneDisplay');
@@ -2039,7 +2044,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const titleParam = urlParams.get('title');
 
                 if (titleParam) {
-                    localStorage.setItem('mainTitle', decodeURIComponent(titleParam));
+                    localStorage.setItem(lsKey('mainTitle'), decodeURIComponent(titleParam));
                 }
 
                 // QR ID 추출 및 저장
@@ -2332,12 +2337,12 @@ window.downloadQR = downloadQR;
 window.shareToKakao = function() {
     // 카카오톡 공유 기능
     if (typeof Kakao !== 'undefined' && Kakao.Share) {
-        const title = localStorage.getItem('mainTitle') || 'Speed 아파트 통신 환경 개선 신청서';
+        const title = localStorage.getItem(lsKey('mainTitle')) || 'Speed 아파트 통신 환경 개선 신청서';
         const subtitle = localStorage.getItem('mainSubtitle') || '통신 환경 개선을 위한 신청서를 작성해주세요';
         const isDebugMode = new URLSearchParams(window.location.search).get('debug') === 'true';
-        const customerUrl = isDebugMode ? 
-            `${window.location.origin}${window.location.pathname}?debug=true&mode=customer` :
-            `${window.location.origin}${window.location.pathname}?mode=customer`;
+        const customerUrl = isDebugMode ?
+            `${window.location.origin}${window.location.pathname}?debug=true&mode=customer&apt=${APARTMENT_ID}` :
+            `${window.location.origin}${window.location.pathname}?mode=customer&apt=${APARTMENT_ID}`;
         
         Kakao.Share.sendDefault({
             objectType: 'feed',
@@ -2373,7 +2378,7 @@ function showApartmentNameModal() {
     const input = document.getElementById('apartmentNameInput');
 
     // 현재 저장된 값 불러오기
-    const savedValue = localStorage.getItem('apartmentName') || '';
+    const savedValue = localStorage.getItem(lsKey('apartmentName')) || '';
     input.value = savedValue;
 
     modal.style.display = 'block';
@@ -2395,7 +2400,7 @@ function saveApartmentName() {
     }
 
     // localStorage에 저장
-    localStorage.setItem('apartmentName', value);
+    localStorage.setItem(lsKey('apartmentName'), value);
 
     // 화면 표시 업데이트
     updateApartmentNameDisplay();
@@ -2411,7 +2416,7 @@ function saveApartmentName() {
 
 function updateApartmentNameDisplay() {
     const display = document.getElementById('apartmentNameDisplay');
-    const savedValue = localStorage.getItem('apartmentName') || '';
+    const savedValue = localStorage.getItem(lsKey('apartmentName')) || '';
 
     if (savedValue) {
         display.textContent = savedValue;
@@ -2430,7 +2435,7 @@ function showEntryIssueModal() {
     const input = document.getElementById('entryIssueInput');
 
     // 현재 저장된 값 불러오기
-    const savedValue = localStorage.getItem('entryIssue') || '';
+    const savedValue = localStorage.getItem(lsKey('entryIssue')) || '';
     input.value = savedValue;
 
     modal.style.display = 'block';
@@ -2452,7 +2457,7 @@ function saveEntryIssue() {
     }
 
     // localStorage에 저장
-    localStorage.setItem('entryIssue', value);
+    localStorage.setItem(lsKey('entryIssue'), value);
 
     // 화면 표시 업데이트
     updateEntryIssueDisplay();
@@ -2468,7 +2473,7 @@ function saveEntryIssue() {
 
 function updateEntryIssueDisplay() {
     const display = document.getElementById('entryIssueDisplay');
-    const savedValue = localStorage.getItem('entryIssue') || '';
+    const savedValue = localStorage.getItem(lsKey('entryIssue')) || '';
 
     if (savedValue) {
         display.textContent = savedValue.length > 20 ? savedValue.substring(0, 20) + '...' : savedValue;
@@ -2487,7 +2492,7 @@ function showAgencyNameModal() {
     const input = document.getElementById('agencyNameInput');
 
     // 현재 저장된 값 불러오기
-    const savedValue = localStorage.getItem('agencyName') || '';
+    const savedValue = localStorage.getItem(lsKey('agencyName')) || '';
     input.value = savedValue;
 
     modal.style.display = 'block';
@@ -2509,7 +2514,7 @@ function saveAgencyName() {
     }
 
     // localStorage에 저장
-    localStorage.setItem('agencyName', value);
+    localStorage.setItem(lsKey('agencyName'), value);
 
     // 화면 표시 업데이트
     updateAgencyNameDisplay();
@@ -2525,7 +2530,7 @@ function saveAgencyName() {
 
 function updateAgencyNameDisplay() {
     const display = document.getElementById('agencyNameDisplay');
-    const savedValue = localStorage.getItem('agencyName') || '';
+    const savedValue = localStorage.getItem(lsKey('agencyName')) || '';
 
     if (savedValue) {
         display.textContent = savedValue;
@@ -2629,7 +2634,7 @@ function goToSettings() {
 // 신규 영업 KC 등록 시작 (편집 모드 체크 추가)
 function startNewKcRegistration() {
     // ★ 편집 모드인지 확인
-    const currentEditingQRId = localStorage.getItem('currentEditingQRId');
+    const currentEditingQRId = localStorage.getItem(lsKey('currentEditingQRId'));
 
     if (currentEditingQRId) {
         // 편집 모드: 저장 함수 호출
@@ -2704,13 +2709,13 @@ function resetAllSettings() {
 
     try {
         // STEP 1: 기본 설정 초기화
-        localStorage.removeItem('apartmentName');
-        localStorage.removeItem('entryIssue');
-        localStorage.removeItem('agencyName');
+        localStorage.removeItem(lsKey('apartmentName'));
+        localStorage.removeItem(lsKey('entryIssue'));
+        localStorage.removeItem(lsKey('agencyName'));
 
         // STEP 2: 알림 설정 초기화
-        localStorage.removeItem('savedEmailAddresses');
-        localStorage.removeItem('savedPhoneNumbers');
+        localStorage.removeItem(lsKey('savedEmailAddresses'));
+        localStorage.removeItem(lsKey('savedPhoneNumbers'));
 
         // STEP 3: QR 코드 카드 내부만 초기화 (생성된 QR 관리 섹션은 절대 건드리지 않음)
         console.log('🗑️ STEP 3 카드 내부 QR 초기화 중...');
@@ -2840,8 +2845,8 @@ async function createNewQR() {
         const currentUrl = window.location.origin + window.location.pathname;
         const isDebugMode = new URLSearchParams(window.location.search).get('debug') === 'true';
         const qrUrl = isDebugMode ?
-            `${currentUrl}?debug=true&mode=customer&qr_id=${shortCode}` :
-            `${currentUrl}?mode=customer&qr_id=${shortCode}`;
+            `${currentUrl}?debug=true&mode=customer&qr_id=${shortCode}&apt=${APARTMENT_ID}` :
+            `${currentUrl}?mode=customer&qr_id=${shortCode}&apt=${APARTMENT_ID}`;
 
         console.log('📱 짧은 코드로 QR URL 생성:', qrUrl, '(코드:', shortCode, ')');
 
@@ -3359,29 +3364,29 @@ async function loadQRForEdit(qrId) {
         }
 
         // localStorage 초기화 (기존 데이터 제거)
-        localStorage.removeItem('apartmentName');
-        localStorage.removeItem('entryIssue');
-        localStorage.removeItem('agencyName');
-        localStorage.removeItem('savedEmailAddresses');
-        localStorage.removeItem('savedPhoneNumbers');
+        localStorage.removeItem(lsKey('apartmentName'));
+        localStorage.removeItem(lsKey('entryIssue'));
+        localStorage.removeItem(lsKey('agencyName'));
+        localStorage.removeItem(lsKey('savedEmailAddresses'));
+        localStorage.removeItem(lsKey('savedPhoneNumbers'));
 
         // QR 데이터를 localStorage에 저장
         if (qrData.apartment_name) {
-            localStorage.setItem('apartmentName', qrData.apartment_name);
+            localStorage.setItem(lsKey('apartmentName'), qrData.apartment_name);
             currentApartmentName = qrData.apartment_name;
             console.log('✅ QR 로드 시 currentApartmentName 업데이트:', currentApartmentName);
         }
         if (qrData.entry_issue) {
-            localStorage.setItem('entryIssue', qrData.entry_issue);
+            localStorage.setItem(lsKey('entryIssue'), qrData.entry_issue);
         }
         if (qrData.agency_name) {
-            localStorage.setItem('agencyName', qrData.agency_name);
+            localStorage.setItem(lsKey('agencyName'), qrData.agency_name);
         }
         if (qrData.emails && Array.isArray(qrData.emails)) {
-            localStorage.setItem('savedEmailAddresses', JSON.stringify(qrData.emails));
+            localStorage.setItem(lsKey('savedEmailAddresses'), JSON.stringify(qrData.emails));
         }
         if (qrData.phones && Array.isArray(qrData.phones)) {
-            localStorage.setItem('savedPhoneNumbers', JSON.stringify(qrData.phones));
+            localStorage.setItem(lsKey('savedPhoneNumbers'), JSON.stringify(qrData.phones));
         }
 
         // STEP 1 화면 업데이트
@@ -3473,7 +3478,7 @@ async function loadQRForEdit(qrId) {
         }
 
         // 현재 편집 중인 QR ID를 저장 (나중에 저장할 때 사용)
-        localStorage.setItem('currentEditingQRId', qrId);
+        localStorage.setItem(lsKey('currentEditingQRId'), qrId);
 
         // STEP 1 카드로 스크롤
         const featuresSection = document.querySelector('.features-section');
@@ -3511,7 +3516,7 @@ async function saveAdminSettingsFromEdit() {
         console.log('💾 수정된 관리자 설정 저장 시작');
 
         // 현재 편집 중인 QR ID 확인
-        const currentEditingQRId = localStorage.getItem('currentEditingQRId');
+        const currentEditingQRId = localStorage.getItem(lsKey('currentEditingQRId'));
 
         if (!currentEditingQRId) {
             console.error('❌ 편집 중인 QR ID가 없습니다.');
@@ -3520,11 +3525,11 @@ async function saveAdminSettingsFromEdit() {
         }
 
         // localStorage에서 데이터 수집
-        const apartmentName = localStorage.getItem('apartmentName') || '';
-        const entryIssue = localStorage.getItem('entryIssue') || '';
-        const agencyName = localStorage.getItem('agencyName') || '';
-        const emails = JSON.parse(localStorage.getItem('savedEmailAddresses') || '[]');
-        const phones = JSON.parse(localStorage.getItem('savedPhoneNumbers') || '[]');
+        const apartmentName = localStorage.getItem(lsKey('apartmentName')) || '';
+        const entryIssue = localStorage.getItem(lsKey('entryIssue')) || '';
+        const agencyName = localStorage.getItem(lsKey('agencyName')) || '';
+        const emails = JSON.parse(localStorage.getItem(lsKey('savedEmailAddresses')) || '[]');
+        const phones = JSON.parse(localStorage.getItem(lsKey('savedPhoneNumbers')) || '[]');
 
         // 확인 다이얼로그
         const confirmMessage = `다음 내용으로 저장하시겠습니까?\n\n` +
@@ -3576,7 +3581,7 @@ async function saveAdminSettingsFromEdit() {
         alert('✅ 설정이 성공적으로 저장되었습니다!');
 
         // 편집 모드 종료 - 버튼 텍스트 원래대로 복원
-        localStorage.removeItem('currentEditingQRId');
+        localStorage.removeItem(lsKey('currentEditingQRId'));
 
         const newKcRegisterBtn = document.getElementById('newKcRegisterBtn');
         if (newKcRegisterBtn) {

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Apartment — QR 관리 시스템</title>
+    <link rel="stylesheet" href="landing.css">
+</head>
+<body>
+
+    <!-- 상단 내비게이션 -->
+    <nav class="l-nav">
+        <div class="l-nav__inner">
+            <div class="l-nav__logo">
+                <span class="l-nav__logo-icon">⚡</span>
+                <span class="l-nav__logo-text">Speed Apartment</span>
+            </div>
+            <a href="index.html" class="l-nav__cta">관리자 입장 →</a>
+        </div>
+    </nav>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="l-main">
+        <div class="l-main__inner">
+
+            <!-- 왼쪽: 헤드라인 + 카드 그리드 -->
+            <section class="l-left">
+                <div class="l-left__header">
+                    <h1 class="l-headline">
+                        대리점별 통신환경 개선 신청서<br>
+                        <em>QR코드 생성 시스템</em>
+                    </h1>
+                    <button class="l-register-btn" onclick="openRegisterModal()">+ 대리점 등록</button>
+                </div>
+
+                <!-- 4×4 카드 그리드 (JS 동적 렌더링) -->
+                <div id="agencyGrid" class="l-grid"></div>
+            </section>
+
+            <!-- 오른쪽: CSS 폰 목업 + QR -->
+            <aside class="l-right">
+                <div class="l-phone">
+                    <!-- 사이드 버튼 (CSS) -->
+                    <div class="l-phone__side-btn l-phone__side-btn--vol-up"></div>
+                    <div class="l-phone__side-btn l-phone__side-btn--vol-down"></div>
+                    <div class="l-phone__side-btn l-phone__side-btn--power"></div>
+
+                    <!-- 스크린 영역 -->
+                    <div class="l-phone__screen">
+                        <!-- 다이나믹 아일랜드 노치 -->
+                        <div class="l-phone__notch"></div>
+
+                        <!-- 화면 전환 래퍼 -->
+                        <div class="l-screens-wrap">
+
+                            <!-- 화면 1: 고객 폼 미리보기 -->
+                            <div class="l-screen l-screen--active" id="phoneScreen1">
+                                <div class="l-phone__form-preview">
+                                    <div class="l-form__header">
+                                        <span class="l-form__title">📡 ㅇㅇ아파트 통신환경 개선 신청서</span>
+                                    </div>
+                                    <div class="l-form__field">
+                                        <span class="l-form__label">공사요청 : 동 / 호수 *</span>
+                                        <div class="l-form__input">101동 101호</div>
+                                    </div>
+                                    <div class="l-form__field">
+                                        <span class="l-form__label">연락처 *</span>
+                                        <div class="l-form__input">010-1234-5678</div>
+                                    </div>
+                                    <div class="l-form__field">
+                                        <span class="l-form__label">현재 사용 중인 인터넷 통신사 *</span>
+                                        <div class="l-form__input l-form__input--select">KT ▾</div>
+                                    </div>
+                                    <div class="l-form__field">
+                                        <span class="l-form__label">공사 희망일 *</span>
+                                        <div class="l-form__input">2026-06-01</div>
+                                    </div>
+                                    <div class="l-form__field">
+                                        <span class="l-form__label">상세 요청사항</span>
+                                        <div class="l-form__input l-form__input--textarea">특이사항 없음</div>
+                                    </div>
+                                    <div class="l-form__privacy">
+                                        <span class="l-form__checkbox">☑</span>
+                                        <span class="l-form__privacy-text">개인정보 수집 및 이용에 동의합니다</span>
+                                    </div>
+                                    <div class="l-form__submit">신청서 제출</div>
+                                </div>
+                            </div>
+
+                            <!-- 화면 2: 신청 완료 결과 화면 -->
+                            <div class="l-screen" id="phoneScreen2">
+                                <div class="l-complete">
+                                    <p class="l-complete__title">✅ 신청이 완료되었습니다!</p>
+
+                                    <div class="l-complete__card">
+                                        <p class="l-complete__card-title">📋 접수 완료</p>
+                                        <div class="l-complete__row">
+                                            <span class="l-complete__key">신청번호</span>
+                                            <span class="l-complete__val">202605192135</span>
+                                        </div>
+                                        <div class="l-complete__row">
+                                            <span class="l-complete__key">신청자</span>
+                                            <span class="l-complete__val">101동 101호</span>
+                                        </div>
+                                        <div class="l-complete__row">
+                                            <span class="l-complete__key">연락처</span>
+                                            <span class="l-complete__val">010-1234-5678</span>
+                                        </div>
+                                        <div class="l-complete__row">
+                                            <span class="l-complete__key">접수일시</span>
+                                            <span class="l-complete__val">2026년 5월 19일 09:35</span>
+                                        </div>
+                                        <div class="l-complete__row">
+                                            <span class="l-complete__key">처리상태</span>
+                                            <span class="l-complete__val">접수 완료 (관리자 검토 중)</span>
+                                        </div>
+                                        <p class="l-complete__notice">💡 관리자가 신청 내용을 검토한 후 연락드릴 예정입니다.<br>문의사항이 있으시면 게시판 공사팀 연락처로 연락 주세요.</p>
+                                    </div>
+
+                                    <!-- SKT/LGU+/기타 선택 시: 지니TV 전단지 -->
+                                    <div class="l-complete__banner">
+                                        <img src="m_evt2685_genieTV_vis.jpg" alt="지니TV 프로모션">
+                                    </div>
+
+                                    <!-- KT 선택 시: 버튼 2개 (주석 처리 — 필요 시 교체) -->
+                                    <!--
+                                    <div class="l-complete__btns">
+                                        <button class="l-complete__btn l-complete__btn--kakao">💬 카카오톡 공유</button>
+                                        <button class="l-complete__btn l-complete__btn--new">새 신청서 작성</button>
+                                    </div>
+                                    -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- 홈 바 -->
+                    <div class="l-phone__home-bar"></div>
+                </div>
+            </aside>
+
+        </div>
+    </main>
+
+    <!-- 폰 화면 자동 전환 -->
+    <script>
+        (function () {
+            var s1 = document.getElementById('phoneScreen1');
+            var s2 = document.getElementById('phoneScreen2');
+            var showingForm = true;
+            setInterval(function () {
+                if (showingForm) {
+                    s1.classList.remove('l-screen--active');
+                    s2.classList.add('l-screen--active');
+                } else {
+                    s2.classList.remove('l-screen--active');
+                    s1.classList.add('l-screen--active');
+                }
+                showingForm = !showingForm;
+            }, 3000);
+        })();
+    </script>
+
+    <!-- qr-code-styling (컬러 QR 지원) -->
+    <script src="https://cdn.jsdelivr.net/npm/qr-code-styling/lib/qr-code-styling.js"></script>
+
+    <!-- 대리점 등록 모달 -->
+    <div class="l-modal-overlay" id="registerModal">
+        <div class="l-modal">
+            <h2 class="l-modal__title">➕ 대리점 등록</h2>
+            <div class="l-modal__field">
+                <label class="l-modal__label" for="agencyNameInput">대리점명 *</label>
+                <input class="l-modal__input" id="agencyNameInput" type="text"
+                       placeholder="예: 스피드_해운대" maxlength="20" autocomplete="off">
+            </div>
+            <div class="l-modal__actions">
+                <button class="l-modal__btn l-modal__btn--secondary" onclick="closeRegisterModal()">취소</button>
+                <button class="l-modal__btn l-modal__btn--primary" onclick="submitRegister()">등록</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 대리점 카드 그리드 관리 -->
+    <script>
+        (function () {
+            var DEFAULT_AGENCIES = [
+                { id: 'speed_apartment21', name: '스피드_서부산' },
+                { id: 'dongbusan',         name: '스피드_동부산' },
+                { id: 'changwon',          name: '스피드_창원'  },
+            ];
+            var GRID_SIZE = 16;
+            var STORAGE_KEY = 'landing_agencies';
+
+            function getBase() {
+                return window.location.href.replace(/landing\.html(\?.*)?$/, '');
+            }
+
+            function loadExtra() {
+                try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+                catch (e) { return []; }
+            }
+
+            function saveExtra(list) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+            }
+
+            function getAllAgencies() {
+                return DEFAULT_AGENCIES.concat(loadExtra());
+            }
+
+            var QR_STYLES = [
+                { dot: 'extra-rounded', corner: '#7B1FA2',
+                  grad: { type: 'linear', rotation: 45,
+                          colorStops: [{offset:0,color:'#CE93D8'},{offset:1,color:'#7B1FA2'}] } },
+                { dot: 'extra-rounded', corner: '#C2185B',
+                  grad: { type: 'linear', rotation: 135,
+                          colorStops: [{offset:0,color:'#F48FB1'},{offset:1,color:'#C2185B'}] } },
+                { dot: 'rounded', corner: '#1565C0',
+                  grad: { type: 'linear', rotation: 45,
+                          colorStops: [{offset:0,color:'#64B5F6'},{offset:1,color:'#1565C0'}] } },
+                { dot: 'classy-rounded', corner: '#00695C',
+                  grad: { type: 'radial',
+                          colorStops: [{offset:0,color:'#80CBC4'},{offset:1,color:'#004D40'}] } },
+                { dot: 'dots', corner: '#E65100',
+                  grad: { type: 'linear', rotation: 90,
+                          colorStops: [{offset:0,color:'#FFCC80'},{offset:1,color:'#E65100'}] } },
+                { dot: 'extra-rounded', corner: '#2E7D32',
+                  grad: { type: 'radial',
+                          colorStops: [{offset:0,color:'#A5D6A7'},{offset:1,color:'#1B5E20'}] } },
+                { dot: 'classy', corner: '#4527A0',
+                  grad: { type: 'linear', rotation: 45,
+                          colorStops: [{offset:0,color:'#9575CD'},{offset:1,color:'#311B92'}] } },
+                { dot: 'dots', corner: '#AD1457',
+                  grad: { type: 'radial',
+                          colorStops: [{offset:0,color:'#F48FB1'},{offset:1,color:'#880E4F'}] } },
+            ];
+
+            function renderGrid() {
+                var agencies = getAllAgencies();
+                var grid = document.getElementById('agencyGrid');
+                grid.innerHTML = '';
+
+                for (var i = 0; i < GRID_SIZE; i++) {
+                    if (i < agencies.length) {
+                        var ag = agencies[i];
+                        var isDefault = i < DEFAULT_AGENCIES.length;
+                        var s = QR_STYLES[i % QR_STYLES.length];
+                        var a = document.createElement('a');
+                        a.href = getBase() + 'index.html?apt=' + ag.id;
+                        a.className = 'l-card l-card--active';
+                        a.style.setProperty('--qr-color', s.corner);
+                        a.innerHTML =
+                            '<div class="l-card__frame">' +
+                              '<div id="cqr_' + ag.id + '" class="l-card__qr"></div>' +
+                              '<span class="l-card__title">' + ag.name + '</span>' +
+                            '</div>' +
+                            (isDefault ? '' : '<button class="l-card__del" onclick="deleteAgency(\'' + ag.id + '\',event)" title="삭제">×</button>');
+                        grid.appendChild(a);
+                    } else {
+                        var div = document.createElement('div');
+                        div.className = 'l-card';
+                        grid.appendChild(div);
+                    }
+                }
+
+                setTimeout(function () {
+                    getAllAgencies().forEach(function (ag, idx) {
+                        var el = document.getElementById('cqr_' + ag.id);
+                        if (el && el.children.length === 0) {
+                            var s = QR_STYLES[idx % QR_STYLES.length];
+                            try {
+                                var qr = new QRCodeStyling({
+                                    width: 220,
+                                    height: 220,
+                                    type: 'svg',
+                                    data: ag.name,
+                                    dotsOptions: { type: s.dot, gradient: s.grad },
+                                    backgroundOptions: { color: '#ffffff' },
+                                    cornersSquareOptions: { type: 'extra-rounded', color: s.corner },
+                                    cornersDotOptions: { type: 'dot', color: s.corner },
+                                    qrOptions: { errorCorrectionLevel: 'L' }
+                                });
+                                qr.append(el);
+                            } catch (e) {}
+                        }
+                    });
+                }, 100);
+            }
+
+            window.openRegisterModal = function () {
+                document.getElementById('agencyNameInput').value = '';
+                document.getElementById('registerModal').classList.add('is-open');
+                setTimeout(function () { document.getElementById('agencyNameInput').focus(); }, 50);
+            };
+
+            window.closeRegisterModal = function () {
+                document.getElementById('registerModal').classList.remove('is-open');
+            };
+
+            window.submitRegister = function () {
+                var name = document.getElementById('agencyNameInput').value.trim();
+                if (!name) { document.getElementById('agencyNameInput').focus(); return; }
+                var extra = loadExtra();
+                if (DEFAULT_AGENCIES.length + extra.length >= GRID_SIZE) {
+                    alert('카드가 가득 찼습니다 (최대 ' + GRID_SIZE + '개).'); return;
+                }
+                extra.push({ id: 'apt_' + Date.now(), name: name });
+                saveExtra(extra);
+                window.closeRegisterModal();
+                renderGrid();
+            };
+
+            window.deleteAgency = function (id, e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var extra = loadExtra().filter(function (ag) { return ag.id !== id; });
+                saveExtra(extra);
+                renderGrid();
+            };
+
+            document.getElementById('agencyNameInput').addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') window.submitRegister();
+            });
+
+            document.getElementById('registerModal').addEventListener('click', function (e) {
+                if (e.target === this) window.closeRegisterModal();
+            });
+
+            renderGrid();
+        })();
+    </script>
+</body>
+</html>
