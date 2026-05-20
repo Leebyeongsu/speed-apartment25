@@ -8,12 +8,17 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
     line-height: 1.6;
     color: #333;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #ffffff;
     min-height: 100vh;
     padding: 20px 10px;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+}
+
+/* 고객 모드(QR 스캔 진입)는 기존 보라 그라디언트 유지 */
+body.customer-mode {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .container {
