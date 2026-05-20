@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <script>
+        // 쿼리 파라미터 없이 루트로 진입 시 landing.html로 이동
+        // (?apt=, ?mode=customer, ?qr_id=, ?debug=, ?admin= 등이 있으면 정상 로드)
+        if (!window.location.search) {
+            window.location.replace('landing.html');
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="format-detection" content="telephone=no">
