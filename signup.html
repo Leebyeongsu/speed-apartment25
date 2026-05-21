@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대리점 가입 신청 — Speed Apartment</title>
+    <link rel="stylesheet" href="landing.css">
+    <style>
+        .auth-wrap {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf3 100%);
+        }
+        .auth-card {
+            width: 100%;
+            max-width: 460px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            padding: 36px 32px;
+        }
+        .auth-logo {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .auth-logo span { color: #7B1FA2; }
+        .auth-sub {
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+        .auth-field { margin-bottom: 14px; }
+        .auth-field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 6px;
+        }
+        .auth-field input {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 15px;
+            border: 1px solid #d8d8e0;
+            border-radius: 10px;
+            background: #fafafe;
+            box-sizing: border-box;
+        }
+        .auth-field input:focus {
+            outline: none;
+            border-color: #7B1FA2;
+            background: #fff;
+        }
+        .auth-field .hint {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #7B1FA2 0%, #4527A0 100%);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .auth-foot {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+        }
+        .auth-foot a {
+            color: #7B1FA2;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .auth-msg {
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .auth-msg.show { display: block; }
+        .auth-msg.error { background: #FFEBEE; color: #C62828; }
+        .auth-msg.info  { background: #E3F2FD; color: #1565C0; }
+        .auth-notice {
+            background: #FFF8E1;
+            color: #6D4C00;
+            font-size: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-wrap">
+        <div class="auth-card">
+            <div class="auth-logo">⚡ <span>QR코드 생성 시스템</span></div>
+            <p class="auth-sub">대리점 가입 신청</p>
+
+            <div class="auth-notice">
+                ℹ 가입 신청 후 <b>본사 승인</b>이 완료되어야 로그인할 수 있습니다.
+            </div>
+
+            <div id="msgBox" class="auth-msg"></div>
+
+            <form id="signupForm" autocomplete="on">
+                <div class="auth-field">
+                    <label for="agencyName">대리점명</label>
+                    <input type="text" id="agencyName" required maxlength="30" placeholder="예: 스피드_해운대">
+                </div>
+                <div class="auth-field">
+                    <label for="displayName">관리자명</label>
+                    <input type="text" id="displayName" required maxlength="20" placeholder="홍길동">
+                </div>
+                <div class="auth-field">
+                    <label for="phone">연락처</label>
+                    <input type="tel" id="phone" required maxlength="20" placeholder="010-1234-5678">
+                </div>
+                <div class="auth-field">
+                    <label for="email">이메일</label>
+                    <input type="email" id="email" required autocomplete="email" placeholder="admin@example.com">
+                </div>
+                <div class="auth-field">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" required autocomplete="new-password" minlength="6" placeholder="6자 이상">
+                    <div class="hint">6자 이상으로 설정하세요</div>
+                </div>
+                <button type="submit" class="auth-btn" id="submitBtn">가입 신청</button>
+            </form>
+
+            <p class="auth-foot">
+                이미 계정이 있으신가요? <a href="login.html">로그인</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth.js"></script>
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const box = document.getElementById('msgBox');
+
+            const payload = {
+                agencyName:  document.getElementById('agencyName').value.trim(),
+                displayName: document.getElementById('displayName').value.trim(),
+                phone:       document.getElementById('phone').value.trim(),
+                email:       document.getElementById('email').value.trim(),
+                password:    document.getElementById('password').value
+            };
+
+            btn.disabled = true;
+            btn.textContent = '처리 중...';
+            box.className = 'auth-msg';
+
+            try {
+                await window.Auth.signUp(payload);
+                // 본사 알림 이메일 발송 (EmailJS, 옵션 — 실패해도 가입은 성공)
+                try {
+                    if (window.emailjs && window.HQ_NOTIFY_TEMPLATE) {
+                        await window.emailjs.send(
+                            window.HQ_NOTIFY_SERVICE || 'default_service',
+                            window.HQ_NOTIFY_TEMPLATE,
+                            {
+                                agency_name:  payload.agencyName,
+                                display_name: payload.displayName,
+                                phone:        payload.phone,
+                                email:        payload.email,
+                                signup_time:  new Date().toLocaleString('ko-KR')
+                            }
+                        );
+                    }
+                } catch (mailErr) {
+                    console.warn('본사 알림 메일 실패(가입 자체는 성공):', mailErr);
+                }
+                // 가입 직후 자동 생성된 세션을 끊고 로그인 화면으로
+                try { await window.Auth.signOut(); } catch (e) {}
+                location.href = 'login.html?status=signup_success';
+            } catch (err) {
+                console.error(err);
+                box.className = 'auth-msg error show';
+                let msg = err.message || '가입 실패';
+                if (msg.includes('User already registered') || msg.includes('already registered')) {
+                    msg = '이미 가입된 이메일입니다';
+                } else if (msg.includes('Password should be')) {
+                    msg = '비밀번호는 6자 이상이어야 합니다';
+                } else if (msg.includes('invalid email')) {
+                    msg = '올바른 이메일 형식이 아닙니다';
+                }
+                box.textContent = '⚠ ' + msg;
+                btn.disabled = false;
+                btn.textContent = '가입 신청';
+            }
+        });
+    </script>
+</body>
+</html>

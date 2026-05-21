@@ -498,6 +498,54 @@ URL: ${window.location.href}
     </script>
     <!-- JavaScript -->
     <script src="supabase-config.js?v=20260518"></script>
+    <script src="auth.js?v=20260521"></script>
+    <!-- 관리자 모드 진입 시 세션 가드 -->
+    <script>
+        (function () {
+            var params = new URLSearchParams(location.search);
+            var isCustomer = params.get('mode') === 'customer';
+            // 고객 모드는 인증 불필요 (QR 링크로 들어오는 일반 사용자)
+            if (isCustomer) return;
+
+            // 관리자 모드 — 인증 + 권한 검증
+            // 인증 확인이 끝날 때까지 화면을 가린다
+            var overlay = document.createElement('div');
+            overlay.id = 'authLoadingOverlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;font-family:system-ui,-apple-system,sans-serif;';
+            overlay.textContent = '로그인 정보 확인 중...';
+            document.documentElement.appendChild(overlay);
+
+            function guard() {
+                if (!window.Auth) { setTimeout(guard, 100); return; }
+                window.Auth.requireAuth().then(function (result) {
+                    if (!result) return; // 리다이렉트됨
+                    var profile = result.profile;
+                    var urlApt = params.get('apt') || '';
+
+                    // 대리점 관리자: 본인 apt만 접근 허용
+                    if (profile.role === 'agency_admin') {
+                        if (urlApt && urlApt !== profile.apartment_id) {
+                            alert('본인 대리점만 접근할 수 있습니다.');
+                            location.replace('index.html?apt=' + encodeURIComponent(profile.apartment_id || ''));
+                            return;
+                        }
+                        // URL에 apt가 없으면 본인 것으로 자동 보정
+                        if (!urlApt && profile.apartment_id) {
+                            params.set('apt', profile.apartment_id);
+                            location.replace(location.pathname + '?' + params.toString());
+                            return;
+                        }
+                    }
+                    // 검증 통과 → 화면 노출
+                    overlay.remove();
+                }).catch(function (e) {
+                    console.error('인증 가드 실패:', e);
+                    overlay.textContent = '인증 확인 실패. 잠시 후 다시 시도해주세요.';
+                });
+            }
+            guard();
+        })();
+    </script>
     <script src="script.js?v=20260518"></script>
 </body>
 </html>

@@ -5,8 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Speed Apartment — QR 관리 시스템</title>
     <link rel="stylesheet" href="landing.css">
+    <style>
+        /* 인증/승인 관련 추가 스타일 */
+        a.l-register-btn { text-decoration: none; }
+        .l-auth-actions { display: flex; gap: 10px; align-items: center; }
+        .l-auth-actions .l-user-chip {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 12px; border-radius: 999px;
+            background: #f3eaf9; color: #4527A0; font-size: 13px; font-weight: 600;
+        }
+        .l-auth-actions .l-logout-btn {
+            padding: 6px 12px; border-radius: 999px; border: 1px solid #ddd;
+            background: #fff; color: #444; font-size: 13px; cursor: pointer;
+        }
+        .l-auth-actions .l-logout-btn:hover { border-color: #7B1FA2; color: #7B1FA2; }
+
+        /* 승인 대기 섹션 */
+        .l-pending-section {
+            margin: 24px 0; padding: 18px 20px;
+            background: #FFF8E1; border-left: 4px solid #FFA000;
+            border-radius: 10px;
+        }
+        .l-pending-section h3 { margin: 0 0 12px; font-size: 16px; color: #6D4C00; }
+        .l-pending-list { display: flex; flex-direction: column; gap: 10px; }
+        .l-pending-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; background: #fff; border-radius: 8px;
+            border: 1px solid #FFE082;
+        }
+        .l-pending-info { flex: 1; font-size: 13px; line-height: 1.5; color: #333; }
+        .l-pending-info b { color: #1a1a2e; }
+        .l-pending-info .muted { color: #888; font-size: 12px; }
+        .l-pending-btn {
+            padding: 7px 14px; border-radius: 8px; border: none;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+        }
+        .l-pending-btn--approve { background: #2E7D32; color: #fff; }
+        .l-pending-btn--reject  { background: #C62828; color: #fff; }
+        .l-pending-empty { font-size: 13px; color: #888; padding: 8px 4px; }
+
+        /* 로딩 화면 */
+        .l-loading-overlay {
+            position: fixed; inset: 0; background: #fff;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999; font-size: 14px; color: #666;
+        }
+    </style>
 </head>
 <body>
+
+    <!-- 진입 시 인증 확인 동안 표시되는 오버레이 -->
+    <div id="authLoadingOverlay" class="l-loading-overlay">로그인 정보 확인 중...</div>
 
     <!-- 상단 내비게이션 -->
     <nav class="l-nav">
@@ -15,7 +64,10 @@
                 <span class="l-nav__logo-icon">⚡</span>
                 <span class="l-nav__logo-text">Speed Apartment</span>
             </div>
-            <a href="index.html?admin=1" class="l-nav__cta">관리자 입장 →</a>
+            <div class="l-auth-actions">
+                <span class="l-user-chip" id="userChip" style="display:none;"></span>
+                <button class="l-logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">로그아웃</button>
+            </div>
         </div>
     </nav>
 
@@ -30,7 +82,13 @@
                         대리점별 통신환경 개선 신청서<br>
                         <em>QR코드 생성 시스템</em>
                     </h1>
-                    <button class="l-register-btn" onclick="openRegisterModal()">+ 대리점 등록</button>
+                    <a class="l-register-btn" href="signup.html">+ 대리점 가입 신청</a>
+                </div>
+
+                <!-- 본사 전용: 승인 대기 목록 -->
+                <div id="pendingSection" class="l-pending-section" style="display:none;">
+                    <h3>⏳ 승인 대기 중인 가입 신청</h3>
+                    <div id="pendingList" class="l-pending-list"></div>
                 </div>
 
                 <!-- 4×4 카드 그리드 (JS 동적 렌더링) -->
@@ -165,48 +223,40 @@
     <!-- qr-code-styling (컬러 QR 지원) -->
     <script src="https://cdn.jsdelivr.net/npm/qr-code-styling/lib/qr-code-styling.js"></script>
 
-    <!-- 대리점 등록 모달 -->
-    <div class="l-modal-overlay" id="registerModal">
-        <div class="l-modal">
-            <h2 class="l-modal__title">➕ 대리점 등록</h2>
-            <div class="l-modal__field">
-                <label class="l-modal__label" for="agencyNameInput">대리점명 *</label>
-                <input class="l-modal__input" id="agencyNameInput" type="text"
-                       placeholder="예: 스피드_해운대" maxlength="20" autocomplete="off">
-            </div>
-            <div class="l-modal__actions">
-                <button class="l-modal__btn l-modal__btn--secondary" onclick="closeRegisterModal()">취소</button>
-                <button class="l-modal__btn l-modal__btn--primary" onclick="submitRegister()">등록</button>
-            </div>
-        </div>
-    </div>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth.js"></script>
 
     <!-- 대리점 카드 그리드 관리 -->
     <script>
         (function () {
+            // 기본 대리점 (시스템 초기 데이터 — 가입 없이 본사가 보유)
             var DEFAULT_AGENCIES = [
                 { id: 'speed_apartment21', name: '스피드_서부산' },
                 { id: 'dongbusan',         name: '스피드_동부산' },
                 { id: 'changwon',          name: '스피드_창원'  },
             ];
             var GRID_SIZE = 16;
-            var STORAGE_KEY = 'landing_agencies';
+
+            // 현재 로그인 정보
+            var currentProfile = null;
+            // Supabase에서 가져온 승인된 대리점 목록 (super_admin 전용)
+            var approvedAgencies = [];
 
             function getBase() {
                 return window.location.href.replace(/landing\.html(\?.*)?$/, '');
             }
 
-            function loadExtra() {
-                try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-                catch (e) { return []; }
-            }
-
-            function saveExtra(list) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-            }
-
             function getAllAgencies() {
-                return DEFAULT_AGENCIES.concat(loadExtra());
+                // 본사: 기본 + 승인된 신규 대리점 전체
+                // 대리점: 자기 자신만 (어차피 landing에 못 머무름)
+                if (currentProfile && currentProfile.role === 'super_admin') {
+                    var extras = approvedAgencies.map(function (a) {
+                        return { id: a.apartment_id, name: a.agency_name };
+                    });
+                    return DEFAULT_AGENCIES.concat(extras);
+                }
+                return DEFAULT_AGENCIES;
             }
 
             var QR_STYLES = [
@@ -244,7 +294,6 @@
                 for (var i = 0; i < GRID_SIZE; i++) {
                     if (i < agencies.length) {
                         var ag = agencies[i];
-                        var isDefault = i < DEFAULT_AGENCIES.length;
                         var s = QR_STYLES[i % QR_STYLES.length];
                         var a = document.createElement('a');
                         a.href = getBase() + 'index.html?apt=' + ag.id;
@@ -254,8 +303,7 @@
                             '<div class="l-card__frame">' +
                               '<div id="cqr_' + ag.id + '" class="l-card__qr"></div>' +
                               '<span class="l-card__title">' + ag.name + '</span>' +
-                            '</div>' +
-                            (isDefault ? '' : '<button class="l-card__del" onclick="deleteAgency(\'' + ag.id + '\',event)" title="삭제">×</button>');
+                            '</div>';
                         grid.appendChild(a);
                     } else {
                         var div = document.createElement('div');
@@ -288,46 +336,130 @@
                 }, 100);
             }
 
-            window.openRegisterModal = function () {
-                document.getElementById('agencyNameInput').value = '';
-                document.getElementById('registerModal').classList.add('is-open');
-                setTimeout(function () { document.getElementById('agencyNameInput').focus(); }, 50);
-            };
+            // ─────────── 승인 대기 목록 (super_admin 전용) ───────────
+            async function renderPendingSection() {
+                if (!currentProfile || currentProfile.role !== 'super_admin') return;
+                var section = document.getElementById('pendingSection');
+                var list = document.getElementById('pendingList');
+                section.style.display = 'block';
+                list.innerHTML = '<div class="l-pending-empty">불러오는 중...</div>';
 
-            window.closeRegisterModal = function () {
-                document.getElementById('registerModal').classList.remove('is-open');
-            };
-
-            window.submitRegister = function () {
-                var name = document.getElementById('agencyNameInput').value.trim();
-                if (!name) { document.getElementById('agencyNameInput').focus(); return; }
-                var extra = loadExtra();
-                if (DEFAULT_AGENCIES.length + extra.length >= GRID_SIZE) {
-                    alert('카드가 가득 찼습니다 (최대 ' + GRID_SIZE + '개).'); return;
+                try {
+                    var pending = await window.Auth.listPendingProfiles();
+                    if (!pending.length) {
+                        list.innerHTML = '<div class="l-pending-empty">대기 중인 신청이 없습니다.</div>';
+                        return;
+                    }
+                    list.innerHTML = '';
+                    pending.forEach(function (p) {
+                        var row = document.createElement('div');
+                        row.className = 'l-pending-row';
+                        var created = p.created_at ? new Date(p.created_at).toLocaleString('ko-KR') : '';
+                        row.innerHTML =
+                            '<div class="l-pending-info">' +
+                                '<b>' + escapeHtml(p.agency_name || '(이름 없음)') + '</b> · ' +
+                                escapeHtml(p.display_name || '') +
+                                '<div class="muted">' +
+                                    escapeHtml(p.email || '') + ' · ' +
+                                    escapeHtml(p.phone || '') + ' · ' +
+                                    '신청: ' + created +
+                                '</div>' +
+                            '</div>';
+                        var approveBtn = document.createElement('button');
+                        approveBtn.className = 'l-pending-btn l-pending-btn--approve';
+                        approveBtn.textContent = '승인';
+                        approveBtn.onclick = function () { handleApprove(p.user_id); };
+                        var rejectBtn = document.createElement('button');
+                        rejectBtn.className = 'l-pending-btn l-pending-btn--reject';
+                        rejectBtn.textContent = '거절';
+                        rejectBtn.onclick = function () { handleReject(p.user_id); };
+                        row.appendChild(approveBtn);
+                        row.appendChild(rejectBtn);
+                        list.appendChild(row);
+                    });
+                } catch (e) {
+                    console.error(e);
+                    list.innerHTML = '<div class="l-pending-empty">불러오기 실패</div>';
                 }
-                extra.push({ id: 'apt_' + Date.now(), name: name });
-                saveExtra(extra);
-                window.closeRegisterModal();
-                renderGrid();
+            }
+
+            async function handleApprove(userId) {
+                if (!confirm('이 가입 신청을 승인하시겠습니까?')) return;
+                try {
+                    await window.Auth.approveProfile(userId);
+                    await refreshAgencies();
+                    await renderPendingSection();
+                    renderGrid();
+                    alert('승인되었습니다.');
+                } catch (e) {
+                    alert('승인 실패: ' + (e.message || e));
+                }
+            }
+
+            async function handleReject(userId) {
+                if (!confirm('이 가입 신청을 거절하시겠습니까?')) return;
+                try {
+                    await window.Auth.rejectProfile(userId);
+                    await renderPendingSection();
+                    alert('거절되었습니다.');
+                } catch (e) {
+                    alert('거절 실패: ' + (e.message || e));
+                }
+            }
+
+            async function refreshAgencies() {
+                if (!currentProfile || currentProfile.role !== 'super_admin') return;
+                try {
+                    approvedAgencies = await window.Auth.listApprovedAgencies();
+                } catch (e) {
+                    console.error('승인 대리점 로드 실패:', e);
+                    approvedAgencies = [];
+                }
+            }
+
+            function escapeHtml(s) {
+                return String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            // ─────────── 로그아웃 ───────────
+            window.doLogout = async function () {
+                try { await window.Auth.signOut(); } catch (e) {}
+                location.href = 'login.html?status=signed_out';
             };
 
-            window.deleteAgency = function (id, e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var extra = loadExtra().filter(function (ag) { return ag.id !== id; });
-                saveExtra(extra);
-                renderGrid();
-            };
+            // ─────────── 진입 가드 ───────────
+            async function boot() {
+                try {
+                    var result = await window.Auth.requireAuth();
+                    if (!result) return; // requireAuth 안에서 리다이렉트됨
+                    currentProfile = result.profile;
 
-            document.getElementById('agencyNameInput').addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') window.submitRegister();
-            });
+                    // 대리점 관리자: 자기 페이지로 즉시 이동
+                    if (currentProfile.role === 'agency_admin') {
+                        location.replace('index.html?apt=' + encodeURIComponent(currentProfile.apartment_id || ''));
+                        return;
+                    }
 
-            document.getElementById('registerModal').addEventListener('click', function (e) {
-                if (e.target === this) window.closeRegisterModal();
-            });
+                    // super_admin: 사용자 칩 표시 + 데이터 로드
+                    var chip = document.getElementById('userChip');
+                    chip.textContent = '👑 ' + (currentProfile.display_name || '본사 관리자');
+                    chip.style.display = 'inline-flex';
+                    document.getElementById('logoutBtn').style.display = 'inline-block';
 
-            renderGrid();
+                    await refreshAgencies();
+                    renderGrid();
+                    renderPendingSection();
+                } catch (e) {
+                    console.error('boot 실패:', e);
+                    alert('초기화 실패. 다시 시도해주세요.');
+                } finally {
+                    document.getElementById('authLoadingOverlay').style.display = 'none';
+                }
+            }
+
+            boot();
         })();
     </script>
 </body>

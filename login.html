@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 — Speed Apartment</title>
+    <link rel="stylesheet" href="landing.css">
+    <style>
+        .auth-wrap {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf3 100%);
+        }
+        .auth-card {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            padding: 40px 32px;
+        }
+        .auth-logo {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .auth-logo span { color: #7B1FA2; }
+        .auth-sub {
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 32px;
+        }
+        .auth-field { margin-bottom: 16px; }
+        .auth-field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 6px;
+        }
+        .auth-field input {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 15px;
+            border: 1px solid #d8d8e0;
+            border-radius: 10px;
+            background: #fafafe;
+            transition: border-color 0.15s, background 0.15s;
+            box-sizing: border-box;
+        }
+        .auth-field input:focus {
+            outline: none;
+            border-color: #7B1FA2;
+            background: #fff;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #7B1FA2 0%, #4527A0 100%);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: transform 0.1s, opacity 0.15s;
+        }
+        .auth-btn:hover { transform: translateY(-1px); }
+        .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .auth-foot {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+        }
+        .auth-foot a {
+            color: #7B1FA2;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .auth-foot a:hover { text-decoration: underline; }
+        .auth-msg {
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .auth-msg.show { display: block; }
+        .auth-msg.error { background: #FFEBEE; color: #C62828; }
+        .auth-msg.info  { background: #E3F2FD; color: #1565C0; }
+        .auth-msg.warn  { background: #FFF8E1; color: #E65100; }
+    </style>
+</head>
+<body>
+    <div class="auth-wrap">
+        <div class="auth-card">
+            <div class="auth-logo">⚡ <span>QR코드 생성 시스템</span></div>
+            <p class="auth-sub">관리자 로그인</p>
+
+            <div id="msgBox" class="auth-msg"></div>
+
+            <form id="loginForm" autocomplete="on">
+                <div class="auth-field">
+                    <label for="email">이메일</label>
+                    <input type="email" id="email" required autocomplete="username" placeholder="admin@example.com">
+                </div>
+                <div class="auth-field">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" required autocomplete="current-password" minlength="6">
+                </div>
+                <button type="submit" class="auth-btn" id="submitBtn">로그인</button>
+            </form>
+
+            <p class="auth-foot">
+                대리점 신규 가입은 <a href="signup.html">여기</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth.js"></script>
+    <script>
+        // URL 쿼리에 따른 안내 메시지
+        (function () {
+            const params = new URLSearchParams(location.search);
+            const status = params.get('status');
+            const box = document.getElementById('msgBox');
+            if (status === 'pending') {
+                box.className = 'auth-msg warn show';
+                box.textContent = '⏳ 가입 신청이 본사 승인 대기 중입니다. 승인 완료 후 다시 로그인해주세요.';
+            } else if (status === 'rejected') {
+                box.className = 'auth-msg error show';
+                box.textContent = '❌ 가입 신청이 거절되었습니다. 본사에 문의하세요.';
+            } else if (status === 'signup_success') {
+                box.className = 'auth-msg info show';
+                box.textContent = '✅ 가입 신청 완료! 본사 승인 후 로그인할 수 있습니다.';
+            } else if (status === 'signed_out') {
+                box.className = 'auth-msg info show';
+                box.textContent = '로그아웃되었습니다.';
+            }
+        })();
+
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const box = document.getElementById('msgBox');
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            btn.disabled = true;
+            btn.textContent = '확인 중...';
+            box.className = 'auth-msg';
+
+            try {
+                await window.Auth.signIn(email, password);
+                const profile = await window.Auth.getProfile();
+                if (!profile) {
+                    throw new Error('프로필을 찾을 수 없습니다. 본사에 문의하세요.');
+                }
+                if (profile.status === 'pending') {
+                    await window.Auth.signOut();
+                    location.href = 'login.html?status=pending';
+                    return;
+                }
+                if (profile.status === 'rejected') {
+                    await window.Auth.signOut();
+                    location.href = 'login.html?status=rejected';
+                    return;
+                }
+                // 다음 페이지로
+                const nextUrl = new URLSearchParams(location.search).get('next');
+                if (nextUrl) {
+                    location.href = nextUrl;
+                } else if (profile.role === 'super_admin') {
+                    location.href = 'landing.html';
+                } else {
+                    location.href = 'index.html?apt=' + encodeURIComponent(profile.apartment_id || '');
+                }
+            } catch (err) {
+                box.className = 'auth-msg error show';
+                box.textContent = '⚠ ' + (err.message || '로그인 실패');
+                btn.disabled = false;
+                btn.textContent = '로그인';
+            }
+        });
+    </script>
+</body>
+</html>
