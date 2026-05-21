@@ -14,11 +14,26 @@
             padding: 6px 12px; border-radius: 999px;
             background: #f3eaf9; color: #4527A0; font-size: 13px; font-weight: 600;
         }
+        .l-auth-actions .l-login-btn,
         .l-auth-actions .l-logout-btn {
-            padding: 6px 12px; border-radius: 999px; border: 1px solid #ddd;
+            padding: 6px 14px; border-radius: 999px; border: 1px solid #ddd;
             background: #fff; color: #444; font-size: 13px; cursor: pointer;
+            text-decoration: none; display: inline-flex; align-items: center;
         }
+        .l-auth-actions .l-login-btn {
+            border-color: #7B1FA2; color: #7B1FA2; font-weight: 700;
+        }
+        .l-auth-actions .l-login-btn:hover { background: #f3eaf9; }
         .l-auth-actions .l-logout-btn:hover { border-color: #7B1FA2; color: #7B1FA2; }
+
+        /* 비활성(미등록) 카드 */
+        .l-card--locked {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(0.3);
+        }
+        .l-card--locked .l-card__title { color: #888; }
 
         /* 승인 대기 섹션 */
         .l-pending-section {
@@ -66,6 +81,7 @@
             </div>
             <div class="l-auth-actions">
                 <span class="l-user-chip" id="userChip" style="display:none;"></span>
+                <a class="l-login-btn" id="loginBtn" href="login.html" style="display:none;">관리자 로그인</a>
                 <button class="l-logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">로그아웃</button>
             </div>
         </div>
@@ -248,15 +264,14 @@
             }
 
             function getAllAgencies() {
-                // 본사: 기본 + 승인된 신규 대리점 전체
-                // 대리점: 자기 자신만 (어차피 landing에 못 머무름)
-                if (currentProfile && currentProfile.role === 'super_admin') {
-                    var extras = approvedAgencies.map(function (a) {
-                        return { id: a.apartment_id, name: a.agency_name };
-                    });
-                    return DEFAULT_AGENCIES.concat(extras);
-                }
-                return DEFAULT_AGENCIES;
+                // 기본 대리점(미등록, 잠금) + 가입된 대리점(클릭 가능) 함께 표시
+                var defaults = DEFAULT_AGENCIES.map(function (a) {
+                    return { id: a.id, name: a.name, locked: true };
+                });
+                var registered = approvedAgencies.map(function (a) {
+                    return { id: a.apartment_id, name: a.agency_name, locked: false };
+                });
+                return defaults.concat(registered);
             }
 
             var QR_STYLES = [
@@ -295,16 +310,25 @@
                     if (i < agencies.length) {
                         var ag = agencies[i];
                         var s = QR_STYLES[i % QR_STYLES.length];
-                        var a = document.createElement('a');
-                        a.href = getBase() + 'index.html?apt=' + ag.id;
-                        a.className = 'l-card l-card--active';
-                        a.style.setProperty('--qr-color', s.corner);
-                        a.innerHTML =
+                        var card;
+                        if (ag.locked) {
+                            // 미가입(잠금) 카드 — 클릭 불가, 흐림 처리
+                            card = document.createElement('div');
+                            card.className = 'l-card l-card--active l-card--locked';
+                            card.title = '관리자 미등록 대리점';
+                        } else {
+                            // 가입된 대리점 — 클릭 시 로그인 후 해당 페이지로
+                            card = document.createElement('a');
+                            card.href = getBase() + 'index.html?apt=' + ag.id;
+                            card.className = 'l-card l-card--active';
+                        }
+                        card.style.setProperty('--qr-color', s.corner);
+                        card.innerHTML =
                             '<div class="l-card__frame">' +
                               '<div id="cqr_' + ag.id + '" class="l-card__qr"></div>' +
                               '<span class="l-card__title">' + ag.name + '</span>' +
                             '</div>';
-                        grid.appendChild(a);
+                        grid.appendChild(card);
                     } else {
                         var div = document.createElement('div');
                         div.className = 'l-card';
@@ -408,11 +432,11 @@
             }
 
             async function refreshAgencies() {
-                if (!currentProfile || currentProfile.role !== 'super_admin') return;
                 try {
-                    approvedAgencies = await window.Auth.listApprovedAgencies();
+                    // 비로그인 포함 누구나 호출 가능한 RPC
+                    approvedAgencies = await window.Auth.listPublicAgencies();
                 } catch (e) {
-                    console.error('승인 대리점 로드 실패:', e);
+                    console.error('대리점 목록 로드 실패:', e);
                     approvedAgencies = [];
                 }
             }
@@ -429,31 +453,50 @@
                 location.href = 'login.html?status=signed_out';
             };
 
-            // ─────────── 진입 가드 ───────────
+            // ─────────── 진입 (공개) ───────────
+            // landing.html은 누구나 접근 가능. 로그인 상태는 nav UI에만 반영.
+            // 카드 클릭 시 index.html이 자체적으로 인증 게이트 처리.
             async function boot() {
                 try {
-                    var result = await window.Auth.requireAuth();
-                    if (!result) return; // requireAuth 안에서 리다이렉트됨
-                    currentProfile = result.profile;
+                    // 1) 공개 대리점 목록은 항상 먼저 로드
+                    await refreshAgencies();
 
-                    // 대리점 관리자: 자기 페이지로 즉시 이동
-                    if (currentProfile.role === 'agency_admin') {
-                        location.replace('index.html?apt=' + encodeURIComponent(currentProfile.apartment_id || ''));
-                        return;
+                    // 2) 세션 확인 (있으면 super_admin 추가 UI)
+                    var session = null;
+                    try { session = await window.Auth.getSession(); } catch (e) {}
+
+                    if (session) {
+                        var profile = null;
+                        try { profile = await window.Auth.getProfile(); } catch (e) {}
+
+                        if (profile && profile.status === 'approved') {
+                            if (profile.role === 'agency_admin') {
+                                // 대리점 관리자는 자기 페이지로 즉시 이동
+                                location.replace('index.html?apt=' + encodeURIComponent(profile.apartment_id || ''));
+                                return;
+                            }
+                            // super_admin: 관리 UI 노출
+                            currentProfile = profile;
+                            var chip = document.getElementById('userChip');
+                            chip.textContent = '👑 ' + (profile.display_name || '본사 관리자');
+                            chip.style.display = 'inline-flex';
+                            document.getElementById('logoutBtn').style.display = 'inline-block';
+                            renderPendingSection();
+                        } else {
+                            // pending/rejected: 강제 로그아웃 + 비로그인 UI
+                            try { await window.Auth.signOut(); } catch (e) {}
+                            document.getElementById('loginBtn').style.display = 'inline-flex';
+                        }
+                    } else {
+                        // 비로그인: 관리자 로그인 버튼만 표시
+                        document.getElementById('loginBtn').style.display = 'inline-flex';
                     }
 
-                    // super_admin: 사용자 칩 표시 + 데이터 로드
-                    var chip = document.getElementById('userChip');
-                    chip.textContent = '👑 ' + (currentProfile.display_name || '본사 관리자');
-                    chip.style.display = 'inline-flex';
-                    document.getElementById('logoutBtn').style.display = 'inline-block';
-
-                    await refreshAgencies();
                     renderGrid();
-                    renderPendingSection();
                 } catch (e) {
                     console.error('boot 실패:', e);
-                    alert('초기화 실패. 다시 시도해주세요.');
+                    // 실패해도 그리드는 렌더링 시도
+                    try { renderGrid(); } catch (_) {}
                 } finally {
                     document.getElementById('authLoadingOverlay').style.display = 'none';
                 }

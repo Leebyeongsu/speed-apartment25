@@ -188,6 +188,14 @@
         return data || [];
     }
 
+    // 공개용 대리점 목록 (비로그인도 호출 가능) — apartment_id, agency_name만 반환
+    async function listPublicAgencies() {
+        const client = await waitForClient();
+        const { data, error } = await client.rpc('list_public_agencies');
+        if (error) throw error;
+        return data || [];
+    }
+
     // 외부 노출
     window.Auth = {
         signUp,
@@ -199,6 +207,7 @@
         listPendingProfiles,
         approveProfile,
         rejectProfile,
-        listApprovedAgencies
+        listApprovedAgencies,
+        listPublicAgencies
     };
 })();
