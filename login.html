@@ -142,6 +142,9 @@
             } else if (status === 'signup_success') {
                 box.className = 'auth-msg info show';
                 box.textContent = '✅ 가입 신청 완료! 본사 승인 후 로그인할 수 있습니다.';
+            } else if (status === 'agency_added') {
+                box.className = 'auth-msg info show';
+                box.textContent = '✅ 대리점 추가 신청이 접수되었습니다. 본사 승인 후 카드가 활성화됩니다.';
             } else if (status === 'signed_out') {
                 box.className = 'auth-msg info show';
                 box.textContent = '로그아웃되었습니다.';
@@ -179,10 +182,10 @@
                 const nextUrl = new URLSearchParams(location.search).get('next');
                 if (nextUrl) {
                     location.href = nextUrl;
-                } else if (profile.role === 'super_admin') {
-                    location.href = 'landing.html';
                 } else {
-                    location.href = 'index.html?apt=' + encodeURIComponent(profile.apartment_id || '');
+                    // super_admin/agency_admin 모두 landing.html로 보내고
+                    // landing.html이 다중 대리점 여부에 따라 자동 분기 처리한다.
+                    location.href = 'landing.html';
                 }
             } catch (err) {
                 box.className = 'auth-msg error show';

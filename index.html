@@ -520,18 +520,25 @@ URL: ${window.location.href}
                 window.Auth.requireAuth().then(function (result) {
                     if (!result) return; // 리다이렉트됨
                     var profile = result.profile;
+                    var approvedProfiles = result.approvedProfiles || [];
                     var urlApt = params.get('apt') || '';
 
-                    // 대리점 관리자: 본인 apt만 접근 허용
+                    // 대리점 관리자: 본인이 소유한 apt 중 하나만 접근 허용
                     if (profile.role === 'agency_admin') {
-                        if (urlApt && urlApt !== profile.apartment_id) {
+                        var ownedApts = approvedProfiles
+                            .filter(function (p) { return p.role === 'agency_admin'; })
+                            .map(function (p) { return p.apartment_id; });
+
+                        if (urlApt && ownedApts.indexOf(urlApt) === -1) {
                             alert('본인 대리점만 접근할 수 있습니다.');
-                            location.replace('index.html?apt=' + encodeURIComponent(profile.apartment_id || ''));
+                            // 가장 첫 소유 대리점으로 이동, 없으면 landing
+                            location.replace(ownedApts.length
+                                ? 'index.html?apt=' + encodeURIComponent(ownedApts[0])
+                                : 'landing.html');
                             return;
                         }
-                        // URL에 apt가 없으면 본인 것으로 자동 보정
-                        if (!urlApt && profile.apartment_id) {
-                            params.set('apt', profile.apartment_id);
+                        if (!urlApt && ownedApts.length) {
+                            params.set('apt', ownedApts[0]);
                             location.replace(location.pathname + '?' + params.toString());
                             return;
                         }

@@ -115,7 +115,8 @@
             <p class="auth-sub">대리점 가입 신청</p>
 
             <div class="auth-notice">
-                ℹ 가입 신청 후 <b>본사 승인</b>이 완료되어야 로그인할 수 있습니다.
+                ℹ 가입 신청 후 <b>본사 승인</b>이 완료되어야 로그인할 수 있습니다.<br>
+                ℹ 이미 가입된 이메일이면 같은 비밀번호를 입력하여 <b>대리점을 추가</b>할 수 있습니다.
             </div>
 
             <div id="msgBox" class="auth-msg"></div>
@@ -172,7 +173,7 @@
             box.className = 'auth-msg';
 
             try {
-                await window.Auth.signUp(payload);
+                const result = await window.Auth.signUp(payload);
                 // 본사 알림 이메일 발송 (EmailJS, 옵션 — 실패해도 가입은 성공)
                 try {
                     if (window.emailjs && window.HQ_NOTIFY_TEMPLATE) {
@@ -184,6 +185,7 @@
                                 display_name: payload.displayName,
                                 phone:        payload.phone,
                                 email:        payload.email,
+                                signup_mode:  result.mode === 'existing' ? '추가' : '신규',
                                 signup_time:  new Date().toLocaleString('ko-KR')
                             }
                         );
@@ -193,17 +195,44 @@
                 }
                 // 가입 직후 자동 생성된 세션을 끊고 로그인 화면으로
                 try { await window.Auth.signOut(); } catch (e) {}
-                location.href = 'login.html?status=signup_success';
+                const successKey = result.mode === 'existing' ? 'agency_added' : 'signup_success';
+                location.href = 'login.html?status=' + successKey;
             } catch (err) {
                 console.error(err);
                 box.className = 'auth-msg error show';
                 let msg = err.message || '가입 실패';
+
+                // 보안용 짧은 간격 제한 (Supabase rate limit)
+                const rateMatch = msg.match(/after\s+(\d+)\s+seconds/i);
+                if (rateMatch) {
+                    const sec = parseInt(rateMatch[1], 10);
+                    msg = `잠시 후 다시 시도하세요. (${sec}초 후 재시도 가능)`;
+                    // 카운트다운 + 자동 활성화
+                    let remaining = sec;
+                    btn.textContent = `${remaining}초 대기...`;
+                    const tick = setInterval(() => {
+                        remaining--;
+                        if (remaining <= 0) {
+                            clearInterval(tick);
+                            btn.disabled = false;
+                            btn.textContent = '가입 신청';
+                            box.className = 'auth-msg';
+                        } else {
+                            btn.textContent = `${remaining}초 대기...`;
+                        }
+                    }, 1000);
+                    box.textContent = '⏱ ' + msg;
+                    return;
+                }
+
                 if (msg.includes('User already registered') || msg.includes('already registered')) {
                     msg = '이미 가입된 이메일입니다';
                 } else if (msg.includes('Password should be')) {
                     msg = '비밀번호는 6자 이상이어야 합니다';
-                } else if (msg.includes('invalid email')) {
+                } else if (msg.includes('invalid email') || msg.includes('Invalid email')) {
                     msg = '올바른 이메일 형식이 아닙니다';
+                } else if (msg.includes('rate limit')) {
+                    msg = '잠시 후 다시 시도하세요.';
                 }
                 box.textContent = '⚠ ' + msg;
                 btn.disabled = false;

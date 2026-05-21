@@ -461,29 +461,49 @@
                     // 1) 공개 대리점 목록은 항상 먼저 로드
                     await refreshAgencies();
 
-                    // 2) 세션 확인 (있으면 super_admin 추가 UI)
+                    // 2) 세션 확인
                     var session = null;
                     try { session = await window.Auth.getSession(); } catch (e) {}
 
                     if (session) {
+                        // 사용자의 모든 프로필 조회 (다중 대리점 가능)
                         var profile = null;
-                        try { profile = await window.Auth.getProfile(); } catch (e) {}
+                        var myAgencies = [];
+                        try {
+                            profile = await window.Auth.getProfile();
+                            // super_admin은 list_my_agencies가 빈 배열 반환
+                            myAgencies = await window.Auth.listMyAgencies();
+                        } catch (e) { console.warn(e); }
 
-                        if (profile && profile.status === 'approved') {
-                            if (profile.role === 'agency_admin') {
-                                // 대리점 관리자는 자기 페이지로 즉시 이동
-                                location.replace('index.html?apt=' + encodeURIComponent(profile.apartment_id || ''));
-                                return;
+                        var hasApproved = (profile && profile.status === 'approved') ||
+                                          myAgencies.some(function (a) { return a.status === 'approved'; });
+
+                        if (hasApproved && profile) {
+                            if (profile.role === 'super_admin') {
+                                // 본사: 관리 UI 노출
+                                currentProfile = profile;
+                                var chip = document.getElementById('userChip');
+                                chip.textContent = '👑 ' + (profile.display_name || '본사 관리자');
+                                chip.style.display = 'inline-flex';
+                                document.getElementById('logoutBtn').style.display = 'inline-block';
+                                renderPendingSection();
+                            } else {
+                                // 대리점 관리자: 승인된 대리점만 추림
+                                var approved = myAgencies.filter(function (a) { return a.status === 'approved'; });
+                                if (approved.length === 1) {
+                                    // 1개만 소유 → 자동 이동 (기존 UX)
+                                    location.replace('index.html?apt=' + encodeURIComponent(approved[0].apartment_id));
+                                    return;
+                                }
+                                // 2개 이상: landing에 머물러서 직접 선택
+                                currentProfile = profile;
+                                var chip2 = document.getElementById('userChip');
+                                chip2.textContent = '🏢 ' + (profile.display_name || '대리점 관리자') + ' · 보유 ' + approved.length + '개';
+                                chip2.style.display = 'inline-flex';
+                                document.getElementById('logoutBtn').style.display = 'inline-block';
                             }
-                            // super_admin: 관리 UI 노출
-                            currentProfile = profile;
-                            var chip = document.getElementById('userChip');
-                            chip.textContent = '👑 ' + (profile.display_name || '본사 관리자');
-                            chip.style.display = 'inline-flex';
-                            document.getElementById('logoutBtn').style.display = 'inline-block';
-                            renderPendingSection();
                         } else {
-                            // pending/rejected: 강제 로그아웃 + 비로그인 UI
+                            // 모든 행이 pending/rejected → 강제 로그아웃
                             try { await window.Auth.signOut(); } catch (e) {}
                             document.getElementById('loginBtn').style.display = 'inline-flex';
                         }
@@ -495,7 +515,6 @@
                     renderGrid();
                 } catch (e) {
                     console.error('boot 실패:', e);
-                    // 실패해도 그리드는 렌더링 시도
                     try { renderGrid(); } catch (_) {}
                 } finally {
                     document.getElementById('authLoadingOverlay').style.display = 'none';

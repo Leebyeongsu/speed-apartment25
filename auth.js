@@ -38,7 +38,13 @@
 
     // ─────────── 가입 ───────────
     // payload: { email, password, agencyName, displayName, phone }
-    // user_profiles 행은 auth.users INSERT 트리거(handle_new_user_signup)가 자동 생성한다.
+    //
+    // 흐름:
+    //   1) 신규 이메일 → auth.signUp() → 트리거가 user_profiles에 pending 행 자동 생성
+    //   2) 이미 가입된 이메일 → 같은 비번으로 signIn 시도하여 본인 확인 → add_agency RPC로 추가 pending 행 생성
+    //   3) 이미 가입됐는데 비번 틀리면 명확한 에러 (타인 이메일 도용 차단)
+    //
+    // 반환: { user, mode: 'new' | 'existing' }
     async function signUp(payload) {
         const client = await waitForClient();
         const { email, password, agencyName, displayName, phone } = payload;
@@ -46,9 +52,8 @@
             throw new Error('필수 항목을 모두 입력하세요');
         }
 
-        // auth.users 생성 + 메타데이터 전달
-        // 트리거가 raw_user_meta_data를 읽어 user_profiles에 pending 행을 만든다.
-        const { data, error } = await client.auth.signUp({
+        // 1) 신규 가입 시도
+        const { data: signUpData, error: signUpErr } = await client.auth.signUp({
             email,
             password,
             options: {
@@ -59,10 +64,33 @@
                 }
             }
         });
-        if (error) throw error;
-        if (!data.user) throw new Error('가입 처리 중 오류');
 
-        return { user: data.user };
+        if (!signUpErr && signUpData.user) {
+            // 신규 가입 성공 — 트리거가 pending 행 만들었음
+            return { user: signUpData.user, mode: 'new' };
+        }
+
+        // 2) 이미 가입된 이메일인지 판단
+        const errMsg = (signUpErr && signUpErr.message) || '';
+        const alreadyRegistered = /already\s*registered|already\s*exists|User already/i.test(errMsg);
+        if (!alreadyRegistered) {
+            throw signUpErr || new Error('가입 처리 중 오류');
+        }
+
+        // 3) 기존 사용자 본인 확인 (입력한 비밀번호로 signIn)
+        const { data: signInData, error: signInErr } = await client.auth.signInWithPassword({ email, password });
+        if (signInErr || !signInData.session) {
+            throw new Error('이미 가입된 이메일입니다. 비밀번호가 일치하지 않습니다.');
+        }
+
+        // 4) 본인 확인 OK — 새 대리점 추가 RPC 호출
+        const { data: aptId, error: rpcErr } = await client.rpc('add_agency_for_current_user', {
+            p_agency_name: agencyName,
+            p_phone: phone
+        });
+        if (rpcErr) throw rpcErr;
+
+        return { user: signInData.user, mode: 'existing', apartmentId: aptId };
     }
 
     // ─────────── 로그인 ───────────
@@ -87,6 +115,8 @@
         return data.session;
     }
 
+    // 사용자의 대표 프로필 1건 반환
+    // 다중 대리점인 경우 super_admin 행 우선, 그 외엔 최초 생성 행
     async function getProfile() {
         const client = await waitForClient();
         const session = await getSession();
@@ -95,49 +125,71 @@
             .from('user_profiles')
             .select('*')
             .eq('user_id', session.user.id)
-            .single();
+            .order('created_at', { ascending: true });
         if (error) {
             console.error('getProfile 실패:', error);
             return null;
         }
-        return data;
+        if (!data || !data.length) return null;
+        // 우선순위: super_admin → approved → (어느 것도 없으면) 최초 행
+        const superRow = data.find(r => r.role === 'super_admin');
+        if (superRow) return superRow;
+        const approvedRow = data.find(r => r.status === 'approved');
+        if (approvedRow) return approvedRow;
+        return data[0];
+    }
+
+    // 현재 로그인 사용자가 소유한 모든 대리점 (RPC 경유)
+    async function listMyAgencies() {
+        const client = await waitForClient();
+        const { data, error } = await client.rpc('list_my_agencies');
+        if (error) throw error;
+        return data || [];
     }
 
     // ─────────── 권한 가드 ───────────
     // allowed: ['super_admin','agency_admin'] 또는 단일 문자열
-    // 사용처: 페이지 진입 직후 호출. 권한 없으면 자동 리다이렉트 후 null 반환
+    // 다중 대리점 환경 대응: 사용자의 모든 프로필을 읽어 1개라도 approved면 통과
+    // 반환: { session, profile(대표 1건), profiles(전체), approvedProfiles(승인된 것만) }
     async function requireAuth(allowed) {
+        const client = await waitForClient();
         const session = await getSession();
         if (!session) {
             location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
             return null;
         }
-        const profile = await getProfile();
-        if (!profile) {
+        const { data: profiles, error } = await client
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: true });
+        if (error || !profiles || !profiles.length) {
             alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
             await signOut();
             location.href = 'login.html';
             return null;
         }
-        if (profile.status === 'pending') {
-            location.href = 'login.html?status=pending';
+        const approvedProfiles = profiles.filter(p => p.status === 'approved');
+        if (!approvedProfiles.length) {
+            // 모든 행이 pending 또는 rejected
+            const onlyRejected = profiles.every(p => p.status === 'rejected');
+            await signOut();
+            location.href = 'login.html?status=' + (onlyRejected ? 'rejected' : 'pending');
             return null;
         }
-        if (profile.status === 'rejected') {
-            location.href = 'login.html?status=rejected';
-            return null;
-        }
+        // 대표 프로필: super_admin 우선, 없으면 가장 먼저 승인된 행
+        const profile = approvedProfiles.find(p => p.role === 'super_admin') || approvedProfiles[0];
         if (allowed) {
             const roles = Array.isArray(allowed) ? allowed : [allowed];
             if (!roles.includes(profile.role)) {
                 alert('접근 권한이 없습니다');
                 location.href = profile.role === 'super_admin'
                     ? 'landing.html'
-                    : 'index.html?apt=' + encodeURIComponent(profile.apartment_id || '');
+                    : 'index.html?apt=' + encodeURIComponent(approvedProfiles[0].apartment_id || '');
                 return null;
             }
         }
-        return { session, profile };
+        return { session, profile, profiles, approvedProfiles };
     }
 
     // ─────────── 본사 전용 ───────────
@@ -204,6 +256,7 @@
         getSession,
         getProfile,
         requireAuth,
+        listMyAgencies,
         listPendingProfiles,
         approveProfile,
         rejectProfile,
