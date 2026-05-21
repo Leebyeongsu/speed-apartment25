@@ -264,9 +264,10 @@
             }
 
             function getAllAgencies() {
-                // 기본 대리점(미등록, 잠금) + 가입된 대리점(클릭 가능) 함께 표시
+                // 본사 관리자면 기본 카드도 모두 활성화
+                var isSuper = currentProfile && currentProfile.role === 'super_admin';
                 var defaults = DEFAULT_AGENCIES.map(function (a) {
-                    return { id: a.id, name: a.name, locked: true };
+                    return { id: a.id, name: a.name, locked: !isSuper };
                 });
                 var registered = approvedAgencies.map(function (a) {
                     return { id: a.apartment_id, name: a.agency_name, locked: false };
