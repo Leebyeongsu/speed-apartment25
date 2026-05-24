@@ -112,9 +112,9 @@
     <div class="auth-wrap">
         <div class="auth-card">
             <div class="auth-logo">⚡ <span>QR코드 생성 시스템</span></div>
-            <p class="auth-sub">대리점 가입 신청</p>
+            <p class="auth-sub" id="authSub">대리점 가입 신청</p>
 
-            <div class="auth-notice">
+            <div class="auth-notice" id="authNotice">
                 ℹ 가입 신청 후 <b>본사 승인</b>이 완료되어야 로그인할 수 있습니다.<br>
                 ℹ 이미 가입된 이메일이면 같은 비밀번호를 입력하여 <b>대리점을 추가</b>할 수 있습니다.
             </div>
@@ -155,11 +155,98 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth.js"></script>
     <script>
+        var addMode = false;          // 로그인 상태에서의 "대리점 추가" 모드
+        var MAX_AGENCIES = 3;         // 계정당 최대 대리점 수
+
+        // ── 진입 시: 로그인된 대리점 관리자면 "추가 신청" 모드로 전환 ──
+        (async function initSignupMode() {
+            var session = null;
+            try { session = await window.Auth.getSession(); } catch (e) {}
+            if (!session) return;     // 비로그인 → 기존 신규 가입 폼 그대로
+
+            var profile = null;
+            try { profile = await window.Auth.getProfile(); } catch (e) {}
+            // 대리점 관리자만 추가 모드 (본사/미승인 등은 기본 폼 유지)
+            if (!profile || profile.role !== 'agency_admin') return;
+
+            addMode = true;
+
+            var sub = document.getElementById('authSub');
+            if (sub) sub.textContent = '대리점 추가 신청';
+            document.title = '대리점 추가 신청 — Speed Apartment';
+
+            // 로그인 계정에 이미 있는 정보(관리자명·이메일·비밀번호)는 재입력 불필요 → 숨김
+            ['displayName', 'email', 'password'].forEach(function (id) {
+                var input = document.getElementById(id);
+                if (input) {
+                    input.required = false;
+                    var wrap = input.closest('.auth-field');
+                    if (wrap) wrap.style.display = 'none';
+                }
+            });
+
+            var notice = document.getElementById('authNotice');
+            var btn = document.getElementById('submitBtn');
+            var foot = document.querySelector('.auth-foot');
+            var phoneInput = document.getElementById('phone');
+            if (foot) foot.innerHTML = '<a href="landing.html">← 랜딩으로 돌아가기</a>';
+            btn.textContent = '대리점 추가 신청';
+
+            try {
+                var mine = await window.Auth.listMyAgencies();
+                var active = mine.filter(function (a) { return a.status !== 'rejected'; });
+                // 기존 연락처를 기본값으로 채워줌
+                if (phoneInput && !phoneInput.value && mine.length) {
+                    phoneInput.value = mine[mine.length - 1].phone || '';
+                }
+                if (notice) {
+                    notice.innerHTML =
+                        'ℹ 로그인된 계정에 대리점을 추가합니다. <b>최대 ' + MAX_AGENCIES + '개</b>까지 등록 가능합니다.<br>' +
+                        'ℹ 현재 등록: <b>' + active.length + ' / ' + MAX_AGENCIES + '개</b> · 추가 신청 후 <b>본사 승인</b>이 필요합니다.';
+                }
+                if (active.length >= MAX_AGENCIES) {
+                    var box = document.getElementById('msgBox');
+                    box.className = 'auth-msg error show';
+                    box.textContent = '⚠ 이미 최대 ' + MAX_AGENCIES + '개의 대리점을 등록했습니다. 더 추가할 수 없습니다.';
+                    document.getElementById('agencyName').disabled = true;
+                    if (phoneInput) phoneInput.disabled = true;
+                    btn.disabled = true;
+                }
+            } catch (e) { console.warn('보유 대리점 조회 실패:', e); }
+        })();
+
         document.getElementById('signupForm').addEventListener('submit', async function (e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const box = document.getElementById('msgBox');
+            box.className = 'auth-msg';
 
+            // ───── 로그인 상태: 대리점 추가 신청 ─────
+            if (addMode) {
+                const addName  = document.getElementById('agencyName').value.trim();
+                const addPhone = document.getElementById('phone').value.trim();
+                if (!addName || !addPhone) {
+                    box.className = 'auth-msg error show';
+                    box.textContent = '⚠ 대리점명과 연락처를 입력하세요';
+                    return;
+                }
+                btn.disabled = true;
+                btn.textContent = '처리 중...';
+                try {
+                    await window.Auth.addAgency(addName, addPhone);
+                    alert('대리점 추가 신청이 접수되었습니다. 본사 승인 후 활성화됩니다.');
+                    location.href = 'landing.html';
+                } catch (err) {
+                    console.error(err);
+                    box.className = 'auth-msg error show';
+                    box.textContent = '⚠ ' + (err.message || '추가 신청 실패');
+                    btn.disabled = false;
+                    btn.textContent = '대리점 추가 신청';
+                }
+                return;
+            }
+
+            // ───── 비로그인: 신규 가입 흐름 ─────
             const payload = {
                 agencyName:  document.getElementById('agencyName').value.trim(),
                 displayName: document.getElementById('displayName').value.trim(),

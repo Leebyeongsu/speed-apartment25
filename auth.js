@@ -147,6 +147,18 @@
         return data || [];
     }
 
+    // 로그인 상태에서 대리점 추가 신청 (최대 개수 제한은 RPC에서 서버 검증)
+    // 반환: 생성된 apartment_id
+    async function addAgency(agencyName, phone) {
+        const client = await waitForClient();
+        const { data, error } = await client.rpc('add_agency_for_current_user', {
+            p_agency_name: agencyName,
+            p_phone: phone
+        });
+        if (error) throw error;
+        return data;
+    }
+
     // ─────────── 권한 가드 ───────────
     // allowed: ['super_admin','agency_admin'] 또는 단일 문자열
     // 다중 대리점 환경 대응: 사용자의 모든 프로필을 읽어 1개라도 approved면 통과
@@ -257,6 +269,7 @@
         getProfile,
         requireAuth,
         listMyAgencies,
+        addAgency,
         listPendingProfiles,
         approveProfile,
         rejectProfile,
