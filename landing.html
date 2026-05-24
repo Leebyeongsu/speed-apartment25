@@ -505,15 +505,10 @@
                                 renderPendingSection();
                             } else {
                                 // 대리점 관리자: 승인된 대리점만 추림
+                                // 자동 이동 없이 항상 랜딩페이지에 머물러 직접 카드 선택
                                 var approved = myAgencies.filter(function (a) { return a.status === 'approved'; });
                                 // 본인 소유 카드만 활성화하기 위해 apt id 저장
                                 myOwnedAptIds = approved.map(function (a) { return a.apartment_id; });
-                                if (approved.length === 1) {
-                                    // 1개만 소유 → 자동 이동 (기존 UX)
-                                    location.replace('index.html?apt=' + encodeURIComponent(approved[0].apartment_id));
-                                    return;
-                                }
-                                // 2개 이상: landing에 머물러서 직접 선택
                                 currentProfile = profile;
                                 var chip2 = document.getElementById('userChip');
                                 chip2.textContent = '🏢 ' + (profile.display_name || '대리점 관리자') + ' · 보유 ' + approved.length + '개';
