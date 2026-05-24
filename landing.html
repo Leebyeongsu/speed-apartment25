@@ -81,7 +81,8 @@
             </div>
             <div class="l-auth-actions">
                 <span class="l-user-chip" id="userChip" style="display:none;"></span>
-                <a class="l-login-btn" id="loginBtn" href="login.html" style="display:none;">관리자 로그인</a>
+                <a class="l-login-btn" id="hqLoginBtn" href="login.html?role=hq" style="display:none;">본사 관리자 로그인</a>
+                <a class="l-login-btn" id="agencyLoginBtn" href="login.html?role=agency" style="display:none;">대리점 관리자 로그인</a>
                 <button class="l-logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">로그아웃</button>
             </div>
         </div>
@@ -258,19 +259,25 @@
             var currentProfile = null;
             // Supabase에서 가져온 승인된 대리점 목록 (super_admin 전용)
             var approvedAgencies = [];
+            // 로그인한 대리점 관리자가 소유한 apartment_id 목록 (본인 카드만 활성화용)
+            var myOwnedAptIds = [];
 
             function getBase() {
                 return window.location.href.replace(/landing\.html(\?.*)?$/, '');
             }
 
             function getAllAgencies() {
-                // 본사 관리자면 기본 카드도 모두 활성화
+                // 본사 관리자(super_admin)는 모든 카드(기본+가입) 활성화 → 전권 관리
+                // 비로그인은 전부 잠금. 대리점 관리자는 본인 소유 카드만 활성화.
                 var isSuper = currentProfile && currentProfile.role === 'super_admin';
+                function isUnlocked(id) {
+                    return isSuper || myOwnedAptIds.indexOf(id) !== -1;
+                }
                 var defaults = DEFAULT_AGENCIES.map(function (a) {
-                    return { id: a.id, name: a.name, locked: !isSuper };
+                    return { id: a.id, name: a.name, locked: !isUnlocked(a.id) };
                 });
                 var registered = approvedAgencies.map(function (a) {
-                    return { id: a.apartment_id, name: a.agency_name, locked: false };
+                    return { id: a.apartment_id, name: a.agency_name, locked: !isUnlocked(a.apartment_id) };
                 });
                 return defaults.concat(registered);
             }
@@ -448,6 +455,14 @@
                     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             }
 
+            // ─────────── 로그인 버튼 표시 (본사/대리점 2개) ───────────
+            function showLoginButtons() {
+                var hq = document.getElementById('hqLoginBtn');
+                var ag = document.getElementById('agencyLoginBtn');
+                if (hq) hq.style.display = 'inline-flex';
+                if (ag) ag.style.display = 'inline-flex';
+            }
+
             // ─────────── 로그아웃 ───────────
             window.doLogout = async function () {
                 try { await window.Auth.signOut(); } catch (e) {}
@@ -491,6 +506,8 @@
                             } else {
                                 // 대리점 관리자: 승인된 대리점만 추림
                                 var approved = myAgencies.filter(function (a) { return a.status === 'approved'; });
+                                // 본인 소유 카드만 활성화하기 위해 apt id 저장
+                                myOwnedAptIds = approved.map(function (a) { return a.apartment_id; });
                                 if (approved.length === 1) {
                                     // 1개만 소유 → 자동 이동 (기존 UX)
                                     location.replace('index.html?apt=' + encodeURIComponent(approved[0].apartment_id));
@@ -506,11 +523,11 @@
                         } else {
                             // 모든 행이 pending/rejected → 강제 로그아웃
                             try { await window.Auth.signOut(); } catch (e) {}
-                            document.getElementById('loginBtn').style.display = 'inline-flex';
+                            showLoginButtons();
                         }
                     } else {
-                        // 비로그인: 관리자 로그인 버튼만 표시
-                        document.getElementById('loginBtn').style.display = 'inline-flex';
+                        // 비로그인: 본사/대리점 로그인 버튼 표시
+                        showLoginButtons();
                     }
 
                     renderGrid();

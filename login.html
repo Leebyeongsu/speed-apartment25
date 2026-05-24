@@ -103,7 +103,7 @@
     <div class="auth-wrap">
         <div class="auth-card">
             <div class="auth-logo">⚡ <span>QR코드 생성 시스템</span></div>
-            <p class="auth-sub">관리자 로그인</p>
+            <p class="auth-sub" id="authSub">관리자 로그인</p>
 
             <div id="msgBox" class="auth-msg"></div>
 
@@ -128,9 +128,24 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth.js"></script>
     <script>
-        // URL 쿼리에 따른 안내 메시지
+        // URL 쿼리에 따른 역할/안내 메시지
         (function () {
             const params = new URLSearchParams(location.search);
+
+            // 역할별 진입점 — 본사(hq) / 대리점(agency)
+            const role = params.get('role');
+            const sub = document.getElementById('authSub');
+            const btn = document.getElementById('submitBtn');
+            if (role === 'hq') {
+                if (sub) sub.textContent = '본사 관리자 로그인';
+                if (btn) btn.textContent = '본사 관리자 로그인';
+                document.title = '본사 관리자 로그인 — Speed Apartment';
+            } else if (role === 'agency') {
+                if (sub) sub.textContent = '대리점 관리자 로그인';
+                if (btn) btn.textContent = '대리점 관리자 로그인';
+                document.title = '대리점 관리자 로그인 — Speed Apartment';
+            }
+
             const status = params.get('status');
             const box = document.getElementById('msgBox');
             if (status === 'pending') {
@@ -177,6 +192,16 @@
                     await window.Auth.signOut();
                     location.href = 'login.html?status=rejected';
                     return;
+                }
+                // 역할 검증 — 본사/대리점 로그인 진입점 분리
+                const loginRole = new URLSearchParams(location.search).get('role');
+                if (loginRole === 'hq' && profile.role !== 'super_admin') {
+                    await window.Auth.signOut();
+                    throw new Error('본사 관리자 계정이 아닙니다. 대리점 관리자 로그인을 이용해주세요.');
+                }
+                if (loginRole === 'agency' && profile.role !== 'agency_admin') {
+                    await window.Auth.signOut();
+                    throw new Error('대리점 관리자 계정이 아닙니다. 본사 관리자 로그인을 이용해주세요.');
                 }
                 // 다음 페이지로
                 const nextUrl = new URLSearchParams(location.search).get('next');
