@@ -1542,7 +1542,7 @@ function generatePageQR() {
         console.log('QR 코드 생성 시작');
         qrCodeDiv.innerHTML = '';
 
-        new QRCode(qrCodeDiv, {
+        const qrObj = new QRCode(qrCodeDiv, {
             text: customerUrl,
             width: 250,
             height: 250,
@@ -1551,6 +1551,9 @@ function generatePageQR() {
             correctLevel: QRCode.CorrectLevel.H,
             margin: 2
         });
+
+        // 최종본으로 교체 (모서리 색 + 녹색 테두리 + 중앙 로고)
+        decorateQRPreviewDiv(qrCodeDiv, qrObj._oQRCode, customerUrl);
 
         console.log('QR 코드 생성 완료');
 
@@ -1663,63 +1666,29 @@ function deleteQR() {
 // QR 코드 다운로드
 async function downloadQR(format) {
     const qrCodeDiv = document.getElementById('qrcode');
-    const originalCanvas = qrCodeDiv.querySelector('canvas');
+    // 미리보기에 이미 적용된 최종본 캔버스(모서리 색 + 테두리 + 로고)를 그대로 사용
+    const finalCanvas = qrCodeDiv.querySelector('canvas');
 
-    if (!originalCanvas) {
+    if (!finalCanvas) {
         alert('QR 코드를 먼저 생성해주세요.');
         return;
     }
 
-    // 새 캔버스 생성 (테두리 공간 추가)
-    const borderWidth = 5; // 테두리 두께 (10 → 5으로 축소)
-    const newCanvas = document.createElement('canvas');
-    const ctx = newCanvas.getContext('2d');
-
-    // 원본 QR 코드 크기
-    const qrWidth = originalCanvas.width;
-    const qrHeight = originalCanvas.height;
-
-    // 테두리를 포함한 새 캔버스 크기
-    newCanvas.width = qrWidth + (borderWidth * 2);
-    newCanvas.height = qrHeight + (borderWidth * 2);
-
-    // 흰색 배경
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
-
-    // 연한 녹색 테두리 그리기 (사각형)
-    ctx.strokeStyle = '#90EE90';
-    ctx.lineWidth = borderWidth;
-    ctx.strokeRect(borderWidth / 2, borderWidth / 2,
-                   newCanvas.width - borderWidth,
-                   newCanvas.height - borderWidth);
-
-    // 원본 QR 코드를 중앙에 그리기
-    ctx.drawImage(originalCanvas, borderWidth, borderWidth);
-
-    // 로고를 QR 중앙에 삽입
-    await drawLogoOnQRCanvas(ctx, newCanvas.width, newCanvas.height);
-
-    // 다운로드
+    // 다운로드 (화면과 100% 동일한 이미지)
     const link = document.createElement('a');
     link.download = `qrcode.${format}`;
 
     if (format === 'png') {
-        link.href = newCanvas.toDataURL('image/png');
+        link.href = finalCanvas.toDataURL('image/png');
     } else if (format === 'jpg') {
-        // JPG는 흰색 배경 추가
+        // JPG는 투명 영역 방지를 위해 흰색 배경 합성
         const jpgCanvas = document.createElement('canvas');
         const jpgCtx = jpgCanvas.getContext('2d');
-        jpgCanvas.width = newCanvas.width;
-        jpgCanvas.height = newCanvas.height;
-
-        // 흰색 배경
+        jpgCanvas.width = finalCanvas.width;
+        jpgCanvas.height = finalCanvas.height;
         jpgCtx.fillStyle = '#FFFFFF';
         jpgCtx.fillRect(0, 0, jpgCanvas.width, jpgCanvas.height);
-
-        // QR 코드 그리기
-        jpgCtx.drawImage(newCanvas, 0, 0);
-
+        jpgCtx.drawImage(finalCanvas, 0, 0);
         link.href = jpgCanvas.toDataURL('image/jpeg', 0.95);
     }
 
@@ -3135,7 +3104,7 @@ function renderQRCard(container, qrList, prefix) {
         if (previewDiv && qr.qr_url) {
             try {
                 // QR 코드 미리보기 생성
-                new QRCode(previewDiv, {
+                const qrObj = new QRCode(previewDiv, {
                     text: qr.qr_url,
                     width: 150,
                     height: 150,
@@ -3143,11 +3112,8 @@ function renderQRCard(container, qrList, prefix) {
                     colorLight: "#FFFFFF",
                     correctLevel: QRCode.CorrectLevel.H
                 });
-                // 로고 삽입
-                const previewCanvas = previewDiv.querySelector('canvas');
-                if (previewCanvas) {
-                    drawLogoOnQRCanvas(previewCanvas.getContext('2d'), previewCanvas.width, previewCanvas.height);
-                }
+                // 최종본으로 교체 (모서리 색 + 녹색 테두리 + 중앙 로고)
+                decorateQRPreviewDiv(previewDiv, qrObj._oQRCode, qr.id);
             } catch (error) {
                 console.error(`QR 미리보기 생성 실패 (${prefix}-${qr.id}):`, error);
                 previewDiv.innerHTML = '<p style="color: #999;">미리보기 생성 실패</p>';
@@ -3190,51 +3156,157 @@ function drawLogoOnQRCanvas(ctx, canvasWidth, canvasHeight) {
     });
 }
 
+// ===== QR 모서리 색상 데코레이션 (인코딩 데이터/패턴은 변경하지 않음, 표시 색만 변경) =====
+// 모서리(파인더 패턴)에 사용할 색상 팔레트
+const QR_CORNER_COLORS = ['#E53935', '#1E88E5', '#FBC02D', '#43A047', '#8E24AA', '#FB8C00'];
+
+// 문자열 시드 → 의사난수 생성기 (같은 QR은 항상 같은 색 → 미리보기와 다운로드가 일치)
+function qrSeededRandom(seedStr) {
+    const s = String(seedStr);
+    let h = 1779033703 ^ s.length;
+    for (let i = 0; i < s.length; i++) {
+        h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
+        h = (h << 13) | (h >>> 19);
+    }
+    return function () {
+        h = Math.imul(h ^ (h >>> 16), 2246822507);
+        h = Math.imul(h ^ (h >>> 13), 3266489909);
+        h ^= h >>> 16;
+        return (h >>> 0) / 4294967296;
+    };
+}
+
+// HEX 색상 → {r,g,b}
+function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return {
+        r: parseInt(h.substring(0, 2), 16),
+        g: parseInt(h.substring(2, 4), 16),
+        b: parseInt(h.substring(4, 6), 16)
+    };
+}
+
+// 세 모서리(파인더 패턴)의 검은 픽셀만 랜덤 색으로 교체 (QR 데이터/패턴은 그대로)
+// 좌표 계산이 아니라 "실제 그려진 검은 픽셀"을 색만 바꾸므로 라이브러리 렌더링과 절대 어긋나지 않음
+function colorQRFinderPatterns(canvas, qrModel, seedStr) {
+    if (!qrModel) return;
+    const count = qrModel.moduleCount || (qrModel.getModuleCount && qrModel.getModuleCount());
+    if (!count) return;
+    const ctx = canvas.getContext('2d');
+    const nWidth = canvas.width / count;
+    const nHeight = canvas.height / count;
+    const rand = qrSeededRandom(seedStr);
+    const pick = () => hexToRgb(QR_CORNER_COLORS[Math.floor(rand() * QR_CORNER_COLORS.length)]);
+
+    // 파인더 패턴(7모듈)이 차지하는 픽셀 영역
+    const fpW = Math.round(7 * nWidth);
+    const fpH = Math.round(7 * nHeight);
+    const rightX = Math.round((count - 7) * nWidth);
+    const bottomY = Math.round((count - 7) * nHeight);
+
+    const regions = [
+        { x: 0, y: 0, w: fpW, h: fpH },                                  // 좌상단
+        { x: rightX, y: 0, w: canvas.width - rightX, h: fpH },           // 우상단
+        { x: 0, y: bottomY, w: fpW, h: canvas.height - bottomY }         // 좌하단
+    ];
+
+    regions.forEach(region => {
+        if (region.w <= 0 || region.h <= 0) return;
+        const color = pick();
+        let img;
+        try {
+            img = ctx.getImageData(region.x, region.y, region.w, region.h);
+        } catch (e) {
+            return; // getImageData 실패 시 색칠 생략 (QR은 정상)
+        }
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+            // 어두운(검은) 픽셀만 색 교체, 흰 분리 영역은 그대로
+            if (d[i] < 128 && d[i + 1] < 128 && d[i + 2] < 128 && d[i + 3] > 0) {
+                d[i] = color.r;
+                d[i + 1] = color.g;
+                d[i + 2] = color.b;
+            }
+        }
+        ctx.putImageData(img, region.x, region.y);
+    });
+}
+
+// 원본 QR 캔버스 → 최종본 캔버스(모서리 색 + 녹색 테두리 + 중앙 로고) 생성
+async function buildDecoratedQRCanvas(sourceCanvas, qrModel, seedStr) {
+    // 1) 원본 복제 후 모서리 색칠 (원본 보존)
+    const base = document.createElement('canvas');
+    base.width = sourceCanvas.width;
+    base.height = sourceCanvas.height;
+    base.getContext('2d').drawImage(sourceCanvas, 0, 0);
+    colorQRFinderPatterns(base, qrModel, seedStr);
+
+    // 2) 녹색 테두리 캔버스 합성
+    const borderWidth = 5;
+    const out = document.createElement('canvas');
+    const octx = out.getContext('2d');
+    out.width = base.width + borderWidth * 2;
+    out.height = base.height + borderWidth * 2;
+    octx.fillStyle = '#FFFFFF';
+    octx.fillRect(0, 0, out.width, out.height);
+    octx.strokeStyle = '#90EE90';
+    octx.lineWidth = borderWidth;
+    octx.strokeRect(borderWidth / 2, borderWidth / 2, out.width - borderWidth, out.height - borderWidth);
+    octx.drawImage(base, borderWidth, borderWidth);
+
+    // 3) 중앙 로고 삽입
+    await drawLogoOnQRCanvas(octx, out.width, out.height);
+    return out;
+}
+
+// 미리보기 div 안의 라이브러리 QR을 최종본 캔버스로 교체 (화면 = 다운로드 최종본)
+async function decorateQRPreviewDiv(previewDiv, qrModel, seedStr) {
+    const src = previewDiv && previewDiv.querySelector('canvas');
+    if (!src) return null;
+    try {
+        const finalCanvas = await buildDecoratedQRCanvas(src, qrModel, seedStr);
+        finalCanvas.className = 'qr-final-canvas';
+        finalCanvas.style.maxWidth = '100%';
+        finalCanvas.style.height = 'auto';
+        previewDiv.innerHTML = '';
+        previewDiv.appendChild(finalCanvas);
+        return finalCanvas;
+    } catch (e) {
+        console.warn('QR 데코레이션 실패 (원본 유지):', e);
+        return null;
+    }
+}
+
 // QR 코드 다운로드
 async function downloadQRCode(qrId, qrName, format) {
     try {
         console.log(`📥 QR 다운로드 시작: ${qrName} (${format})`);
 
-        // QR 미리보기에서 캔버스 가져오기
+        // 미리보기에 이미 적용된 최종본 캔버스(모서리 색 + 테두리 + 로고)를 그대로 사용
         const previewDiv = document.getElementById(`qr-preview-${qrId}`);
-        const originalCanvas = previewDiv?.querySelector('canvas');
+        const finalCanvas = previewDiv?.querySelector('canvas');
 
-        if (!originalCanvas) {
+        if (!finalCanvas) {
             alert('QR 코드를 찾을 수 없습니다.');
             return;
         }
 
-        // 테두리 추가된 새 캔버스 생성
-        const borderWidth = 5;
-        const newCanvas = document.createElement('canvas');
-        const ctx = newCanvas.getContext('2d');
-
-        const qrWidth = originalCanvas.width;
-        const qrHeight = originalCanvas.height;
-
-        newCanvas.width = qrWidth + (borderWidth * 2);
-        newCanvas.height = qrHeight + (borderWidth * 2);
-
-        // 흰색 배경
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
-
-        // 연한 녹색 테두리
-        ctx.strokeStyle = '#90EE90';
-        ctx.lineWidth = borderWidth;
-        ctx.strokeRect(borderWidth / 2, borderWidth / 2,
-            qrWidth + borderWidth, qrHeight + borderWidth);
-
-        // 원본 QR 코드 그리기
-        ctx.drawImage(originalCanvas, borderWidth, borderWidth);
-
-        // 로고를 QR 중앙에 삽입
-        await drawLogoOnQRCanvas(ctx, newCanvas.width, newCanvas.height);
-
-        // 다운로드
+        // 다운로드 (화면 카드와 100% 동일한 이미지)
         const link = document.createElement('a');
         link.download = `qrcode_${qrName}.${format}`;
-        link.href = newCanvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`);
+        if (format === 'jpg') {
+            // JPG는 투명 영역 방지를 위해 흰색 배경 합성
+            const jpgCanvas = document.createElement('canvas');
+            jpgCanvas.width = finalCanvas.width;
+            jpgCanvas.height = finalCanvas.height;
+            const jpgCtx = jpgCanvas.getContext('2d');
+            jpgCtx.fillStyle = '#FFFFFF';
+            jpgCtx.fillRect(0, 0, jpgCanvas.width, jpgCanvas.height);
+            jpgCtx.drawImage(finalCanvas, 0, 0);
+            link.href = jpgCanvas.toDataURL('image/jpeg', 0.95);
+        } else {
+            link.href = finalCanvas.toDataURL('image/png');
+        }
         link.click();
 
         console.log(`✅ QR 다운로드 완료: ${qrName}.${format}`);
@@ -3456,7 +3528,7 @@ async function loadQRForEdit(qrId) {
             const previewDiv = document.getElementById(`qr-preview-step3-${qrData.id}`);
             if (previewDiv) {
                 try {
-                    new QRCode(previewDiv, {
+                    const qrObj = new QRCode(previewDiv, {
                         text: qrData.qr_url,
                         width: 200,
                         height: 200,
@@ -3464,11 +3536,8 @@ async function loadQRForEdit(qrId) {
                         colorLight: "#FFFFFF",
                         correctLevel: QRCode.CorrectLevel.H
                     });
-                    // 로고 삽입
-                    const step3Canvas = previewDiv.querySelector('canvas');
-                    if (step3Canvas) {
-                        drawLogoOnQRCanvas(step3Canvas.getContext('2d'), step3Canvas.width, step3Canvas.height);
-                    }
+                    // 최종본으로 교체 (모서리 색 + 녹색 테두리 + 중앙 로고)
+                    decorateQRPreviewDiv(previewDiv, qrObj._oQRCode, qrData.id);
                     console.log('✅ STEP 3에 QR 코드 복사 완료');
                 } catch (error) {
                     console.error('❌ QR 미리보기 생성 실패:', error);
