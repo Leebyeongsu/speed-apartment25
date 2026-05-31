@@ -445,67 +445,32 @@ async function saveApplicationToSupabase(applicationData) {
             'electrical': '기타(지역방송)'
         };
 
-        // 안전한 방식: 클라이언트 필드명을 DB 컬럼명으로 매핑하는 헬퍼 사용
-        function mapToDbRecord(app) {
-            // 최소 매핑 규칙: camelCase -> snake_case와 일부 이름 일치 처리
-            const map = {
-                name: 'name',
-                phone: 'phone',
-                address: 'address',
-                workType: 'work_type',
-                work_type_display: 'work_type_display',
-                budget: 'budget',
-                budget_display: 'budget_display',
-                startDate: 'start_date',
-                description: 'description',
-                submittedAt: 'submitted_at',
-                submitted_at: 'submitted_at',
-                application_number: 'application_number',
-                privacy: 'privacy',
-                qr_id: 'qr_id'  // QR ID 매핑 추가
-            };
+        // 실제 DB 컬럼명(camelCase)에 맞춰 직접 매핑
+        const applicationRecord = {
+            name: applicationData.name,
+            phone: applicationData.phone,
+            workType: applicationData.workType,
+            startDate: applicationData.startDate || null,
+            description: applicationData.description || null,
+            privacy: true,
+            submittedAt: applicationData.submittedAt || new Date().toISOString(),
+            qr_id: currentQrId || null
+        };
 
-            const out = {};
-            Object.keys(app).forEach(k => {
-                const dbKey = map[k] || k.replace(/([A-Z])/g, '_$1').toLowerCase();
-                out[dbKey] = app[k];
-            });
-
-            // 보장된 필드
-            if (!out.application_number) out.application_number = applicationNumber;
-            if (!out.submitted_at && app.submittedAt) out.submitted_at = app.submittedAt;
-
-            return out;
-        }
-
-        const applicationRecord = mapToDbRecord(applicationData);
-
-        // QR ID 추가 (고객이 QR 코드를 통해 접속한 경우)
-        if (currentQrId) {
-            applicationRecord.qr_id = currentQrId;
-            console.log('📱 신청서에 QR ID 포함:', currentQrId);
-        }
-
-        // privacy는 항상 true로 표시
-        applicationRecord.privacy = true;
+        console.log('📱 신청서에 QR ID 포함:', currentQrId);
 
         // ★ residents 테이블에 독립 저장 (applications 결과와 무관하게 먼저 실행)
         try {
-            // 통신사 표시명 변환 (workType 코드 → 통신사명)
-            const telecomValue = applicationRecord.work_type_display
-                || providerNames[applicationData.workType]
-                || providerNames[applicationRecord.work_type]
-                || applicationData.workType
-                || null;
+            const telecomValue = providerNames[applicationData.workType] || applicationData.workType || null;
 
             const residentPayload = {
                 qr_id: currentQrId || null,
                 apartment_name: currentApartmentName || null,
-                dong_ho: applicationRecord.name || null,
-                phone: applicationRecord.phone || null,
+                dong_ho: applicationData.name || null,
+                phone: applicationData.phone || null,
                 telecom: telecomValue,
-                hope_date: applicationRecord.start_date || null,
-                memo: applicationRecord.description || null
+                hope_date: applicationData.startDate || null,
+                memo: applicationData.description || null
             };
             console.log('📋 residents 저장 시도:', residentPayload);
             const { data: residentData, error: residentInsertError } = await supabaseClient
@@ -526,12 +491,7 @@ async function saveApplicationToSupabase(applicationData) {
             console.error('❌ residents 예외 오류:', residentError);
         }
 
-        console.log('🔍 Supabase에 신청서 저장 시도 - 상세 정보:', {
-            timestamp: new Date().toISOString(),
-            data: applicationRecord,
-            keys: Object.keys(applicationRecord),
-            values: Object.values(applicationRecord)
-        });
+        console.log('🔍 applications 저장 시도:', applicationRecord);
 
         // applications 테이블에 신청서 저장
         const { data: insertedApplication, error: insertError } = await supabaseClient
@@ -832,85 +792,24 @@ async function sendEmailToAdmins(applicationData) {
     }
 }
 
-// EmailJS를 통한 이메일 발송 (주 시스템)
+// Supabase Edge Function + Resend를 통한 이메일 발송 (주 시스템)
 async function sendNotificationsViaEdgeFunction(applicationData) {
     try {
-        console.log('📱 메일 발송 시작 - 디버그 정보:', {
-            deviceInfo: {
-                userAgent: navigator.userAgent,
-                platform: navigator.platform,
-                isMobile: /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-            },
-            networkState: {
-                isOnline: navigator.onLine,
-                connection: navigator.connection ? {
-                    type: navigator.connection.type,
-                    effectiveType: navigator.connection.effectiveType,
-                    downlink: navigator.connection.downlink
-                } : 'Connection API not supported'
-            },
-            emailJSState: {
-                initialized: emailJSInitialized,
-                attempts: initializationAttempts
-            }
-        });
+        console.log('📨 Resend Edge Function 이메일 발송 시작');
 
-        // 네트워크 상태 확인
         if (!navigator.onLine) {
             console.error('🔴 네트워크 오프라인 상태');
-            throw new Error('네트워크 연결이 필요합니다.');
-        }
-
-        // EmailJS 초기화 상태 확인 및 재시도
-        if (!emailJSInitialized || typeof emailjs === 'undefined') {
-            console.log('📨 EmailJS 초기화 시도 중...');
-            try {
-                // 모바일에서 더 오래 대기
-                const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                if (isMobile) {
-                    console.log('📱 모바일 환경에서 EmailJS 재초기화 시도...');
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
-                
-                await initializeEmailJS();
-                console.log('✅ EmailJS 초기화 성공');
-            } catch (initError) {
-                console.error('❌ EmailJS 초기화 실패:', initError);
-                console.warn('🚫 EmailJS 초기화 실패 — 로컬 알림으로 폴백합니다.');
-                await handleLocalNotification(applicationData);
-                return { success: false, error: 'EmailJS 초기화 실패 - 로컬 폴백' };
-            }
-        }
-
-        if (!emailjs) {
-            console.warn('🚫 EmailJS 사용 불가 — 로컬 알림으로 폴백합니다.');
             await handleLocalNotification(applicationData);
-            return { success: false, error: 'EmailJS 라이브러리 없음 - 로컬 폴백' };
+            return { success: false, error: '네트워크 오프라인' };
         }
-
-        console.log('📨 이메일 발송 시작');
-        console.log('📋 신청서 데이터:', applicationData);
-        console.log('🔑 신청서 ID:', applicationData.id);
-        
-        // 모바일 환경 로깅
-        console.log('📱 사용자 환경:', {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            vendor: navigator.vendor,
-            isMobile: /Mobile|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent)
-        });
 
         // 이메일 수신자 결정: QR별 이메일 우선, 없으면 admin_settings 사용
         let adminEmails = [];
-        
+
         if (currentQRRecipientEmails && currentQRRecipientEmails.length > 0) {
-            // QR별 이메일 사용 (고객 모드에서 설정됨)
-            adminEmails = Array.isArray(currentQRRecipientEmails)
-                ? Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5)
-                : [];
+            adminEmails = Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5);
             console.log('✅ QR별 이메일 수신자 사용:', adminEmails);
         } else {
-            // 폴백: admin_settings에서 이메일 조회
             console.log('👑 QR별 이메일 없음, admin_settings 조회...');
             const supabaseClient = window.supabaseClient || window.supabase;
             if (supabaseClient && typeof supabaseClient.from === 'function') {
@@ -922,126 +821,57 @@ async function sendNotificationsViaEdgeFunction(applicationData) {
 
                 if (adminError || !adminCheck?.emails || adminCheck.emails.length === 0) {
                     console.error('❌ 관리자 이메일 설정 문제:', adminError?.message);
-                    throw new Error('관리자 이메일 설정을 찾을 수 없습니다.');
+                    await handleLocalNotification(applicationData);
+                    return { success: false, error: '관리자 이메일 설정 없음' };
                 }
 
-                adminEmails = Array.isArray(adminCheck.emails)
-                    ? Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5)
-                    : [];
+                adminEmails = Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5);
                 console.log('📧 admin_settings 이메일 수신자 사용:', adminEmails);
             } else {
-                throw new Error('Supabase 클라이언트를 찾을 수 없습니다.');
+                console.error('❌ Supabase 클라이언트 없음');
+                await handleLocalNotification(applicationData);
+                return { success: false, error: 'Supabase 클라이언트 없음' };
             }
         }
 
-        console.log('DEBUG sendNotificationsViaEdgeFunction - 최종 adminEmails:', adminEmails);
-
-        // EmailJS로 메일 발송
-        const results = await Promise.all(adminEmails.map(async (email) => {
-            try {
-                // 이메일용 파라미터 재구성: 신청번호를 YYYYMMDDHHmm으로 전달하고, 제출일시 라벨을 '접수일시:'로 전달
-                const _iso = applicationData.submittedAt || applicationData.submitted_at || new Date().toISOString();
-                const _d = new Date(_iso);
-                const pad = (n) => n.toString().padStart(2, '0');
-                const yy = _d.getFullYear();
-                const mm = pad(_d.getMonth() + 1);
-                const dd = pad(_d.getDate());
-                const hh2 = pad(_d.getHours());
-                const min2 = pad(_d.getMinutes());
-                const emailAppNum = applicationData.application_number || `${yy}${mm}${dd}${hh2}${min2}`;
-                const formattedForEmail = _d.toLocaleString('ko-KR');
-
-                // work_type_display가 없을 경우 안전한 폴백을 계산
-                const providerNamesFallback = {
-                    'interior': 'KT',
-                    'exterior': 'SKT',
-                    'plumbing': 'LGU+',
-                    'electrical': '기타(지역방송)'
-                };
-                const resolvedWorkTypeDisplay = applicationData.work_type_display || providerNamesFallback[applicationData.workType] || applicationData.workType || '미상';
-
-                const result = await emailjs.send(
-                    'service_v90gm26',
-                    'template_pxi385c',
-                    {
-                        to_email: email,
-                        apartment_name: currentApartmentName || 'Speed 아파트',
-                        application_number: emailAppNum,
-                        name: applicationData.name,
-                        phone: applicationData.phone,
-                        // 템플릿에서 {{work_type_display}}를 사용하므로 해당 키도 항상 전송
-                        work_type_display: resolvedWorkTypeDisplay,
-                        work_type: resolvedWorkTypeDisplay,
-                        start_date: applicationData.startDate || '미지정',
-                        description: applicationData.description || '없음',
-                        submitted_at: formattedForEmail,
-                        submittedAt: formattedForEmail,
-                        submission_label: '접수일시:'
-                    }
-                );
-                if (typeof logEmailAttempt === 'function') {
-                    try { await logEmailAttempt(applicationData.id, 'emailjs', 'sent'); } catch(e){ console.warn('logEmailAttempt 실패(무시):', e); }
-                }
-                return { email, success: true, result };
-            } catch (error) {
-                console.error(`❌ ${email}로 EmailJS 개별 발송 실패:`, error);
-                console.error('📋 실패한 이메일 파라미터:', {
-                    to_email: email,
-                    apartment_name: currentApartmentName || 'Speed 아파트',
-                    application_number: emailAppNum,
-                    name: applicationData.name,
-                    phone: applicationData.phone,
-                    work_type_display: resolvedWorkTypeDisplay,
-                    start_date: applicationData.startDate || '미지정',
-                    description: applicationData.description || '없음'
-                });
-                console.error('🔍 오류 상세정보:', {
-                    message: error.message,
-                    stack: error.stack,
-                    name: error.name
-                });
-                
-                // 모바일 디버그 환경에서 오류 표시
-                if (typeof window.logError === 'function') {
-                    window.logError(new Error(`EmailJS 개별 발송 실패 (${email}): ${error.message}`));
-                }
-                
-                if (typeof logEmailAttempt === 'function') {
-                    try { await logEmailAttempt(applicationData.id, 'emailjs', 'failed', error.message); } catch(e){ console.warn('logEmailAttempt 실패(무시):', e); }
-                }
-                return { email, success: false, error };
-            }
-        }));
-
-        // 발송 결과 처리
-        const successfulSends = results.filter(r => r.success).length;
-        const totalAttempts = results.length;
-
-        // 모든 이메일 발송이 실패한 경우 로컬 알림으로 폴백
-        if (successfulSends === 0) {
-            console.warn('⚠️ EmailJS 발송 실패. 로컬 알림으로 대체...');
-            
-            // 로컬 알림 처리 (SendGrid 대신)
-            const localNotification = await handleLocalNotification(applicationData);
-            return {
-                success: localNotification,
-                sent: 0,
-                total: totalAttempts,
-                fallback: 'local_notification'
-            };
+        if (adminEmails.length === 0) {
+            console.warn('⚠️ 발송할 이메일 주소가 없습니다.');
+            return { success: false, error: '수신자 없음' };
         }
 
-        return {
-            success: true,
-            sent: successfulSends,
-            total: totalAttempts
-        };
+        console.log('📤 Edge Function 호출 - 수신자:', adminEmails);
+
+        // Supabase Edge Function 호출
+        const supabaseClient = window.supabaseClient || window.supabase;
+        const { data, error } = await supabaseClient.functions.invoke('send-email', {
+            body: {
+                applicationData,
+                recipientEmails: adminEmails,
+                apartmentName: currentApartmentName || 'Speed 아파트'
+            }
+        });
+
+        if (error) {
+            console.error('❌ Edge Function 호출 오류 → EmailJS 폴백:', error);
+            return await sendEmailToAdmins(applicationData);
+        }
+
+        console.log('✅ Edge Function 발송 결과:', data);
+
+        if (typeof logEmailAttempt === 'function') {
+            try { await logEmailAttempt(applicationData.id, 'resend', data.sent > 0 ? 'sent' : 'failed'); } catch(e) {}
+        }
+
+        if (!data.success || data.sent === 0) {
+            console.warn('⚠️ Resend 발송 실패 → EmailJS 폴백');
+            return await sendEmailToAdmins(applicationData);
+        }
+
+        return { success: true, sent: data.sent, total: data.total };
 
     } catch (error) {
-        console.error('💥 EmailJS 발송 중 오류:', error);
-        console.warn('EmailJS 발송 오류 — 로컬 알림으로 폴백합니다.');
-        await handleLocalNotification(applicationData);
-        return { success: false, error: error.message };
+        console.error('💥 Edge Function 오류 → EmailJS 폴백:', error);
+        return await sendEmailToAdmins(applicationData);
     }
 }
 
