@@ -792,87 +792,9 @@ async function sendEmailToAdmins(applicationData) {
     }
 }
 
-// Supabase Edge Function + Resend를 통한 이메일 발송 (주 시스템)
+// EmailJS를 통한 이메일 발송 (주 시스템 — 최대 5명)
 async function sendNotificationsViaEdgeFunction(applicationData) {
-    try {
-        console.log('📨 Resend Edge Function 이메일 발송 시작');
-
-        if (!navigator.onLine) {
-            console.error('🔴 네트워크 오프라인 상태');
-            await handleLocalNotification(applicationData);
-            return { success: false, error: '네트워크 오프라인' };
-        }
-
-        // 이메일 수신자 결정: QR별 이메일 우선, 없으면 admin_settings 사용
-        let adminEmails = [];
-
-        if (currentQRRecipientEmails && currentQRRecipientEmails.length > 0) {
-            adminEmails = Array.from(new Set(currentQRRecipientEmails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5);
-            console.log('✅ QR별 이메일 수신자 사용:', adminEmails);
-        } else {
-            console.log('👑 QR별 이메일 없음, admin_settings 조회...');
-            const supabaseClient = window.supabaseClient || window.supabase;
-            if (supabaseClient && typeof supabaseClient.from === 'function') {
-                const { data: adminCheck, error: adminError } = await supabaseClient
-                    .from('admin_settings')
-                    .select('emails')
-                    .eq('apartment_id', APARTMENT_ID)
-                    .single();
-
-                if (adminError || !adminCheck?.emails || adminCheck.emails.length === 0) {
-                    console.error('❌ 관리자 이메일 설정 문제:', adminError?.message);
-                    await handleLocalNotification(applicationData);
-                    return { success: false, error: '관리자 이메일 설정 없음' };
-                }
-
-                adminEmails = Array.from(new Set(adminCheck.emails.map(e => (e || '').toString().trim()))).filter(Boolean).slice(0, 5);
-                console.log('📧 admin_settings 이메일 수신자 사용:', adminEmails);
-            } else {
-                console.error('❌ Supabase 클라이언트 없음');
-                await handleLocalNotification(applicationData);
-                return { success: false, error: 'Supabase 클라이언트 없음' };
-            }
-        }
-
-        if (adminEmails.length === 0) {
-            console.warn('⚠️ 발송할 이메일 주소가 없습니다.');
-            return { success: false, error: '수신자 없음' };
-        }
-
-        console.log('📤 Edge Function 호출 - 수신자:', adminEmails);
-
-        // Supabase Edge Function 호출
-        const supabaseClient = window.supabaseClient || window.supabase;
-        const { data, error } = await supabaseClient.functions.invoke('send-email', {
-            body: {
-                applicationData,
-                recipientEmails: adminEmails,
-                apartmentName: currentApartmentName || 'Speed 아파트'
-            }
-        });
-
-        if (error) {
-            console.error('❌ Edge Function 호출 오류 → EmailJS 폴백:', error);
-            return await sendEmailToAdmins(applicationData);
-        }
-
-        console.log('✅ Edge Function 발송 결과:', data);
-
-        if (typeof logEmailAttempt === 'function') {
-            try { await logEmailAttempt(applicationData.id, 'resend', data.sent > 0 ? 'sent' : 'failed'); } catch(e) {}
-        }
-
-        if (!data.success || data.sent === 0) {
-            console.warn('⚠️ Resend 발송 실패 → EmailJS 폴백');
-            return await sendEmailToAdmins(applicationData);
-        }
-
-        return { success: true, sent: data.sent, total: data.total };
-
-    } catch (error) {
-        console.error('💥 Edge Function 오류 → EmailJS 폴백:', error);
-        return await sendEmailToAdmins(applicationData);
-    }
+    return await sendEmailToAdmins(applicationData);
 }
 
 // 관리자에게 알림 발송 (기존 EmailJS 방식 - 백업용)
