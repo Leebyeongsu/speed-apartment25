@@ -92,7 +92,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'Speed 아파트 신청시스템 <onboarding@resend.dev>',
+            from: '신청알림 <noreply@mail.hhofutures.store>',
             to: [email],
             subject: `[${appName}] 새 통신환경 개선 신청 - ${applicationData.name || ''} (${appNumber})`,
             html: htmlBody,

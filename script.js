@@ -792,9 +792,64 @@ async function sendEmailToAdmins(applicationData) {
     }
 }
 
-// EmailJS를 통한 이메일 발송 (주 시스템 — 최대 5명)
+// Resend(Supabase Edge Function)를 통한 이메일 발송 (주 시스템 — 최대 5명)
+// 실패 시 EmailJS(sendEmailToAdmins)로 자동 백업 전환
 async function sendNotificationsViaEdgeFunction(applicationData) {
-    return await sendEmailToAdmins(applicationData);
+    try {
+        // 오프라인이면 EmailJS 백업으로 즉시 전환
+        if (!navigator.onLine) {
+            console.warn('⚠️ 오프라인 상태 → EmailJS 백업 사용');
+            return await sendEmailToAdmins(applicationData);
+        }
+
+        // 수신자 이메일 결정: QR별 이메일 우선, 없으면 admin_settings 조회
+        let adminEmails = [];
+        if (currentQRRecipientEmails && currentQRRecipientEmails.length > 0) {
+            adminEmails = Array.from(new Set(
+                currentQRRecipientEmails.map(e => (e || '').toString().trim())
+            )).filter(Boolean).slice(0, 5);
+        } else {
+            const supabaseClient = window.supabaseClient || window.supabase;
+            const { data: adminCheck } = await supabaseClient
+                .from('admin_settings')
+                .select('emails')
+                .eq('apartment_id', APARTMENT_ID)
+                .single();
+            if (adminCheck?.emails?.length > 0) {
+                adminEmails = adminCheck.emails.slice(0, 5);
+            }
+        }
+
+        // 수신자가 없으면 EmailJS 백업으로 전환
+        if (adminEmails.length === 0) {
+            console.warn('⚠️ 수신자 이메일 없음 → EmailJS 백업 사용');
+            return await sendEmailToAdmins(applicationData);
+        }
+
+        // Resend Edge Function 호출
+        const supabaseClient = window.supabaseClient || window.supabase;
+        const { data, error } = await supabaseClient.functions.invoke('send-email', {
+            body: {
+                applicationData,
+                recipientEmails: adminEmails,
+                apartmentName: currentApartmentName || 'Speed 아파트'
+            }
+        });
+
+        // 실패 시 EmailJS 백업으로 전환
+        if (error || !data?.success || data?.sent === 0) {
+            console.warn('⚠️ Resend 발송 실패 → EmailJS 백업 사용', error || data);
+            return await sendEmailToAdmins(applicationData);
+        }
+
+        console.log(`✅ Resend 발송 성공: ${data.sent}/${data.total}명`);
+        return { success: true, sent: data.sent, total: data.total };
+
+    } catch (err) {
+        // 예외 발생 시 EmailJS 백업으로 전환
+        console.error('❌ Resend 발송 예외 → EmailJS 백업 사용:', err);
+        return await sendEmailToAdmins(applicationData);
+    }
 }
 
 // 관리자에게 알림 발송 (기존 EmailJS 방식 - 백업용)
