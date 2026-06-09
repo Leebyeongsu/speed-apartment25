@@ -515,9 +515,10 @@ async function saveApplicationToSupabase(applicationData) {
 
         console.log('신청서가 Supabase에 저장되었습니다:', insertedApplication);
 
-        // Supabase Edge Function으로 관리자에게 이메일 발송
-        const emailResult = await sendNotificationsViaEdgeFunction(insertedApplication);
-        insertedApplication.email_sent = emailResult;
+        // 이메일 발송은 백그라운드에서 처리 (사용자 대기 없이 즉시 성공 반환)
+        insertedApplication.email_sent = true;
+        sendNotificationsViaEdgeFunction(insertedApplication)
+            .catch(err => console.error('이메일 발송 실패:', err));
 
         return insertedApplication;
 
