@@ -83,8 +83,10 @@ serve(async (req) => {
 </body>
 </html>`
 
-    const results = await Promise.all(
-      emails.map(async (email: string) => {
+    // Resend API 레이트 제한 회피: 순차 발송 (1초 간격)
+    const results = []
+    for (const email of emails) {
+      try {
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -102,12 +104,21 @@ serve(async (req) => {
         const result = await res.json()
         if (!res.ok) {
           console.error(`발송 실패 (${email}):`, result)
-          return { email, success: false, error: result }
+          results.push({ email, success: false, error: result })
+        } else {
+          console.log(`발송 성공 (${email}):`, result.id)
+          results.push({ email, success: true, id: result.id })
         }
-        console.log(`발송 성공 (${email}):`, result.id)
-        return { email, success: true, id: result.id }
-      })
-    )
+      } catch (error) {
+        console.error(`발송 예외 (${email}):`, error)
+        results.push({ email, success: false, error: error.message })
+      }
+
+      // Resend 레이트 제한 회피: 다음 요청 전 1.5초 대기
+      if (email !== emails[emails.length - 1]) {
+        await new Promise(resolve => setTimeout(resolve, 1500))
+      }
+    }
 
     const successCount = results.filter(r => r.success).length
 
