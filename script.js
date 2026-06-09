@@ -459,37 +459,35 @@ async function saveApplicationToSupabase(applicationData) {
 
         console.log('📱 신청서에 QR ID 포함:', currentQrId);
 
-        // ★ residents 테이블에 독립 저장 (applications 결과와 무관하게 먼저 실행)
-        try {
-            const telecomValue = providerNames[applicationData.workType] || applicationData.workType || null;
-
-            const residentPayload = {
-                qr_id: currentQrId || null,
-                apartment_name: currentApartmentName || null,
-                dong_ho: applicationData.name || null,
-                phone: applicationData.phone || null,
-                telecom: telecomValue,
-                hope_date: applicationData.startDate || null,
-                memo: applicationData.description || null
-            };
-            console.log('📋 residents 저장 시도:', residentPayload);
-            const { data: residentData, error: residentInsertError } = await supabaseClient
-                .from('residents')
-                .insert([residentPayload]);
-            if (residentInsertError) {
-                console.error('❌ residents 저장 오류 상세:', {
-                    code: residentInsertError.code,
-                    message: residentInsertError.message,
-                    details: residentInsertError.details,
-                    hint: residentInsertError.hint,
-                    sentData: residentPayload
-                });
-            } else {
-                console.log('✅ residents 테이블 저장 완료:', residentData);
-            }
-        } catch (residentError) {
-            console.error('❌ residents 예외 오류:', residentError);
-        }
+        // ★ residents 테이블에 독립 저장 (백그라운드 처리 - await 하지 않아 applications와 병렬 실행)
+        const telecomValue = providerNames[applicationData.workType] || applicationData.workType || null;
+        const residentPayload = {
+            qr_id: currentQrId || null,
+            apartment_name: currentApartmentName || null,
+            dong_ho: applicationData.name || null,
+            phone: applicationData.phone || null,
+            telecom: telecomValue,
+            hope_date: applicationData.startDate || null,
+            memo: applicationData.description || null
+        };
+        console.log('📋 residents 저장 시도(백그라운드):', residentPayload);
+        supabaseClient
+            .from('residents')
+            .insert([residentPayload])
+            .then(({ data: residentData, error: residentInsertError }) => {
+                if (residentInsertError) {
+                    console.error('❌ residents 저장 오류 상세:', {
+                        code: residentInsertError.code,
+                        message: residentInsertError.message,
+                        details: residentInsertError.details,
+                        hint: residentInsertError.hint,
+                        sentData: residentPayload
+                    });
+                } else {
+                    console.log('✅ residents 테이블 저장 완료:', residentData);
+                }
+            })
+            .catch(residentError => console.error('❌ residents 예외 오류:', residentError));
 
         console.log('🔍 applications 저장 시도:', applicationRecord);
 
