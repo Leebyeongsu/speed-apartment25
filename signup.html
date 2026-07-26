@@ -156,7 +156,8 @@
     <script src="auth.js"></script>
     <script>
         var addMode = false;          // 로그인 상태에서의 "대리점 추가" 모드
-        var MAX_AGENCIES = 3;         // 계정당 최대 대리점 수
+        var isSuperAdmin = false;     // 본사 관리자(super_admin) 여부 — submit 핸들러에서도 참조
+        var MAX_AGENCIES = 3;         // 계정당 최대 대리점 수 (대리점 관리자 기준, 본사는 무제한)
 
         // ── 진입 시: 로그인된 대리점 관리자면 "추가 신청" 모드로 전환 ──
         (async function initSignupMode() {
@@ -169,12 +170,12 @@
             // 대리점 관리자 또는 본사 관리자(super_admin)만 추가 모드 (미승인 등은 기본 폼 유지)
             if (!profile || (profile.role !== 'agency_admin' && profile.role !== 'super_admin')) return;
 
-            var isSuperAdmin = profile.role === 'super_admin';
+            isSuperAdmin = profile.role === 'super_admin';
             addMode = true;
 
             var sub = document.getElementById('authSub');
-            if (sub) sub.textContent = '대리점 추가 신청';
-            document.title = '대리점 추가 신청 — Speed Apartment';
+            if (sub) sub.textContent = isSuperAdmin ? '대리점 생성' : '대리점 추가 신청';
+            document.title = (isSuperAdmin ? '대리점 생성' : '대리점 추가 신청') + ' — Speed Apartment';
 
             // 로그인 계정에 이미 있는 정보(관리자명·이메일·비밀번호)는 재입력 불필요 → 숨김
             ['displayName', 'email', 'password'].forEach(function (id) {
@@ -191,7 +192,7 @@
             var foot = document.querySelector('.auth-foot');
             var phoneInput = document.getElementById('phone');
             if (foot) foot.innerHTML = '<a href="landing.html">← 랜딩으로 돌아가기</a>';
-            btn.textContent = '대리점 추가 신청';
+            btn.textContent = isSuperAdmin ? '대리점 생성' : '대리점 추가 신청';
 
             try {
                 var mine = await window.Auth.listMyAgencies();
@@ -201,11 +202,11 @@
                     phoneInput.value = mine[mine.length - 1].phone || '';
                 }
                 if (isSuperAdmin) {
-                    // 본사 관리자는 개수 제한 없이 무조건 추가 가능
+                    // 본사 관리자는 개수 제한 없이, 승인 절차 없이 즉시 생성
                     if (notice) {
                         notice.innerHTML =
-                            'ℹ 본사 관리자 계정으로 대리점을 추가합니다. <b>개수 제한 없이</b> 등록할 수 있습니다.<br>' +
-                            'ℹ 현재 등록: <b>' + active.length + '개</b> · 추가 신청 후 <b>본사 승인</b>이 필요합니다.';
+                            'ℹ 본사 관리자 계정으로 대리점을 <b>즉시 생성</b>합니다. 개수 제한이 없으며 별도 승인 절차 없이 바로 활성화됩니다.<br>' +
+                            'ℹ 현재 보유: <b>' + active.length + '개</b>';
                     }
                 } else {
                     if (notice) {
@@ -244,14 +245,16 @@
                 btn.textContent = '처리 중...';
                 try {
                     await window.Auth.addAgency(addName, addPhone);
-                    alert('대리점 추가 신청이 접수되었습니다. 본사 승인 후 활성화됩니다.');
+                    alert(isSuperAdmin
+                        ? '대리점이 생성되었습니다.'
+                        : '대리점 추가 신청이 접수되었습니다. 본사 승인 후 활성화됩니다.');
                     location.href = 'landing.html';
                 } catch (err) {
                     console.error(err);
                     box.className = 'auth-msg error show';
-                    box.textContent = '⚠ ' + (err.message || '추가 신청 실패');
+                    box.textContent = '⚠ ' + (err.message || (isSuperAdmin ? '대리점 생성 실패' : '추가 신청 실패'));
                     btn.disabled = false;
-                    btn.textContent = '대리점 추가 신청';
+                    btn.textContent = isSuperAdmin ? '대리점 생성' : '대리점 추가 신청';
                 }
                 return;
             }
