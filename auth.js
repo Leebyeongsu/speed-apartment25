@@ -65,16 +65,24 @@
             }
         });
 
-        if (!signUpErr && signUpData.user) {
+        // Supabase는 이미 가입 확인(confirmed)된 이메일로 재가입을 시도하면
+        // 이메일 열거(enumeration) 방지를 위해 에러 없이 identities가 빈 배열인
+        // 가짜 user를 200으로 반환한다. 이 경우도 "이미 가입됨"으로 취급해야 한다.
+        const isFakeExistingUser = !signUpErr && signUpData && signUpData.user &&
+            Array.isArray(signUpData.user.identities) && signUpData.user.identities.length === 0;
+
+        if (!signUpErr && signUpData.user && !isFakeExistingUser) {
             // 신규 가입 성공 — 트리거가 pending 행 만들었음
             return { user: signUpData.user, mode: 'new' };
         }
 
         // 2) 이미 가입된 이메일인지 판단
-        const errMsg = (signUpErr && signUpErr.message) || '';
-        const alreadyRegistered = /already\s*registered|already\s*exists|User already/i.test(errMsg);
-        if (!alreadyRegistered) {
-            throw signUpErr || new Error('가입 처리 중 오류');
+        if (!isFakeExistingUser) {
+            const errMsg = (signUpErr && signUpErr.message) || '';
+            const alreadyRegistered = /already\s*registered|already\s*exists|User already/i.test(errMsg);
+            if (!alreadyRegistered) {
+                throw signUpErr || new Error('가입 처리 중 오류');
+            }
         }
 
         // 3) 기존 사용자 본인 확인 (입력한 비밀번호로 signIn)

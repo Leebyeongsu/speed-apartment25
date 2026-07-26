@@ -166,9 +166,10 @@
 
             var profile = null;
             try { profile = await window.Auth.getProfile(); } catch (e) {}
-            // 대리점 관리자만 추가 모드 (본사/미승인 등은 기본 폼 유지)
-            if (!profile || profile.role !== 'agency_admin') return;
+            // 대리점 관리자 또는 본사 관리자(super_admin)만 추가 모드 (미승인 등은 기본 폼 유지)
+            if (!profile || (profile.role !== 'agency_admin' && profile.role !== 'super_admin')) return;
 
+            var isSuperAdmin = profile.role === 'super_admin';
             addMode = true;
 
             var sub = document.getElementById('authSub');
@@ -199,18 +200,27 @@
                 if (phoneInput && !phoneInput.value && mine.length) {
                     phoneInput.value = mine[mine.length - 1].phone || '';
                 }
-                if (notice) {
-                    notice.innerHTML =
-                        'ℹ 로그인된 계정에 대리점을 추가합니다. <b>최대 ' + MAX_AGENCIES + '개</b>까지 등록 가능합니다.<br>' +
-                        'ℹ 현재 등록: <b>' + active.length + ' / ' + MAX_AGENCIES + '개</b> · 추가 신청 후 <b>본사 승인</b>이 필요합니다.';
-                }
-                if (active.length >= MAX_AGENCIES) {
-                    var box = document.getElementById('msgBox');
-                    box.className = 'auth-msg error show';
-                    box.textContent = '⚠ 이미 최대 ' + MAX_AGENCIES + '개의 대리점을 등록했습니다. 더 추가할 수 없습니다.';
-                    document.getElementById('agencyName').disabled = true;
-                    if (phoneInput) phoneInput.disabled = true;
-                    btn.disabled = true;
+                if (isSuperAdmin) {
+                    // 본사 관리자는 개수 제한 없이 무조건 추가 가능
+                    if (notice) {
+                        notice.innerHTML =
+                            'ℹ 본사 관리자 계정으로 대리점을 추가합니다. <b>개수 제한 없이</b> 등록할 수 있습니다.<br>' +
+                            'ℹ 현재 등록: <b>' + active.length + '개</b> · 추가 신청 후 <b>본사 승인</b>이 필요합니다.';
+                    }
+                } else {
+                    if (notice) {
+                        notice.innerHTML =
+                            'ℹ 로그인된 계정에 대리점을 추가합니다. <b>최대 ' + MAX_AGENCIES + '개</b>까지 등록 가능합니다.<br>' +
+                            'ℹ 현재 등록: <b>' + active.length + ' / ' + MAX_AGENCIES + '개</b> · 추가 신청 후 <b>본사 승인</b>이 필요합니다.';
+                    }
+                    if (active.length >= MAX_AGENCIES) {
+                        var box = document.getElementById('msgBox');
+                        box.className = 'auth-msg error show';
+                        box.textContent = '⚠ 이미 최대 ' + MAX_AGENCIES + '개의 대리점을 등록했습니다. 더 추가할 수 없습니다.';
+                        document.getElementById('agencyName').disabled = true;
+                        if (phoneInput) phoneInput.disabled = true;
+                        btn.disabled = true;
+                    }
                 }
             } catch (e) { console.warn('보유 대리점 조회 실패:', e); }
         })();
